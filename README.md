@@ -86,8 +86,8 @@ npm run dev
 ## Technologies Used
 
 - **Backend:** Node.js, Express, Knex.js, JWT, Multer, OpenAPI
-- **Frontend:** Vue.js 3, Pinia/Vuex, Vue Router, Vite
-- **Database:** (MySQL/PostgreSQL/SQLite - configurable)
+- **Frontend:** Vue.js 3, Pinia, Vue Router, Vite, Tanstack
+- **Database:** (PostgreSQL - configurable)
 - **Others:** RESTful API, JWT Auth, File Upload, Pagination
 
 ---
