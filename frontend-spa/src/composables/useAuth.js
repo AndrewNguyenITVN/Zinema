@@ -1,106 +1,75 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.store'
 import authService from '@/services/auth.service'
 
-const EMPLOYEES_QUERY_KEY = 'employees'
-const CUSTOMERS_QUERY_KEY = 'customers'
 const AUTH_QUERY_KEY = 'auth'
 
-// Toàn bộ state và logic quản lý đã được chuyển vào auth.store.js
-// Composable này bây giờ đóng vai trò là một lớp facade/helper để truy cập store dễ dàng hơn
-
 /**
- * Composable cho authentication chính.
- * Lấy state và getters trực tiếp từ Pinia store.
+ * Composable chính cho việc xác thực và quản lý tài khoản người dùng.
+ * Cung cấp state, getters và actions liên quan đến người dùng hiện tại,
+ * cũng như chức năng thay đổi mật khẩu.
  */
 export function useAuth() {
   const authStore = useAuthStore()
-
-  return {
-    // State (thông qua computed refs từ store)
-    isAuthenticated: computed(() => authStore.isAuthenticated),
-    currentUser: computed(() => authStore.currentUser),
-    isLoading: computed(() => authStore.isLoading),
-
-    // Getters (thông qua computed refs từ store)
-    userRole: computed(() => authStore.userRole),
-    isAdmin: computed(() => authStore.isAdmin),
-    isEmployee: computed(() => authStore.isEmployee),
-    isCustomer: computed(() => authStore.isCustomer),
-    canManageEmployees: computed(() => authStore.canManageEmployees),
-    canManageCustomers: computed(() => authStore.canManageCustomers),
-
-    // Actions (trỏ trực tiếp đến store actions)
-    logout: authStore.logout,
-    setCurrentUser: authStore.setCurrentUser,
-    setAuthenticated: authStore.setAuthenticated,
-    initAuth: authStore.initAuth,
-  }
-}
-
-/**
- * Composable cho employee management
- * Chỉ trả về các mutation, không tự gọi
- */
-export function useEmployees() {
   const queryClient = useQueryClient()
 
-  const registerEmployeeMutation = useMutation({
-    mutationFn: authService.registerEmployee,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [EMPLOYEES_QUERY_KEY] })
-    },
-  })
+  // --- State and Getters (từ Pinia store) ---
+  const isAuthenticated = computed(() => authStore.isAuthenticated)
+  const currentUser = computed(() => authStore.currentUser)
+  const isLoading = computed(() => authStore.isLoading)
+  const userRole = computed(() => authStore.userRole)
+  const isAdmin = computed(() => authStore.isAdmin)
+  const isEmployee = computed(() => authStore.isEmployee)
+  const isCustomer = computed(() => authStore.isCustomer)
+  const canManageEmployees = computed(() => authStore.canManageEmployees)
+  const canManageCustomers = computed(() => authStore.canManageCustomers)
 
-  const updateEmployeeMutation = useMutation({
-    mutationFn: ({ id, data }) => authService.updateEmployee(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [EMPLOYEES_QUERY_KEY] })
-    },
-  })
+  // --- Actions (từ Pinia store) ---
+  const { logout, setCurrentUser, setAuthenticated, initAuth } = authStore
 
-  return {
-    registerEmployee: registerEmployeeMutation,
-    updateEmployee: updateEmployeeMutation,
-  }
-}
-
-/**
- * Composable cho customer management
- * Chỉ trả về các mutation, không tự gọi
- */
-export function useCustomers() {
-  const queryClient = useQueryClient()
-
-  const updateCustomerMutation = useMutation({
-    mutationFn: ({ id, data }) => authService.updateCustomer(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [CUSTOMERS_QUERY_KEY] })
-      queryClient.invalidateQueries({ queryKey: [AUTH_QUERY_KEY, 'currentUser'] })
-    },
-  })
-
-  return {
-    updateCustomer: updateCustomerMutation,
-  }
-}
-
-/**
- * Composable cho đổi mật khẩu
- */
-export function usePasswordChange() {
-  const queryClient = useQueryClient()
-
-  const changePasswordMutation = useMutation({
+  // --- Mutations (sử dụng Vue Query) ---
+  const {
+    mutate: changePassword,
+    isLoading: isChangingPassword,
+    isSuccess: isChangePasswordSuccess,
+    isError: isChangePasswordError,
+    error: changePasswordError,
+    reset: resetChangePassword,
+  } = useMutation({
     mutationFn: authService.changePassword,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [AUTH_QUERY_KEY] })
     },
   })
 
+  // --- Trả về state và hàm để component có thể dùng ---
   return {
-    changePassword: changePasswordMutation,
-    isChangingPassword: changePasswordMutation.isLoading,
+    // State
+    isAuthenticated,
+    currentUser,
+    isLoading,
+
+    // Getters
+    userRole,
+    isAdmin,
+    isEmployee,
+    isCustomer,
+    canManageEmployees,
+    canManageCustomers,
+
+    // Actions
+    logout,
+    setCurrentUser,
+    setAuthenticated,
+    initAuth,
+
+    // Password Change
+    changePassword,
+    isChangingPassword,
+    isChangePasswordSuccess,
+    isChangePasswordError,
+    changePasswordError,
+    resetChangePassword,
   }
 }
