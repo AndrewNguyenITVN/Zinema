@@ -1,24 +1,20 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuery } from '@tanstack/vue-query'
 import UserCard from '@/components/UserCard.vue'
 import InputSearch from '@/components/InputSearch.vue'
 import { useAuth } from '@/composables/useAuth'
-import authService from '@/services/auth.service'
+import { useEmployees } from '@/composables/useEmployees'
 
 const router = useRouter()
 const { canManageEmployees } = useAuth()
-
 const {
-  data: employeesData,
-  isLoading,
-  isError,
-  refetch,
-} = useQuery({
-  queryKey: ['employees'],
-  queryFn: authService.getAllEmployees,
-})
+  employees: employeesData,
+  isLoadingEmployees,
+  isEmployeesError,
+  refetchEmployees,
+} = useEmployees()
+
 const employees = computed(() => employeesData.value?.employees || [])
 
 const searchText = ref('')
@@ -63,8 +59,8 @@ function goToEmployeeDetail(employee) {
           </div>
 
           <div class="header-actions">
-            <button class="action-btn" @click="refetch" :disabled="isLoading">
-              <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoading }"></i>
+            <button class="action-btn" @click="refetchEmployees" :disabled="isLoadingEmployees">
+              <i class="fas fa-sync-alt" :class="{ 'fa-spin': isLoadingEmployees }"></i>
               <span>Làm mới</span>
             </button>
             <button v-if="canManageEmployees" class="action-btn-primary" @click="goToAddEmployee">
@@ -88,17 +84,17 @@ function goToEmployeeDetail(employee) {
     <div class="page-content">
       <div class="container">
         <!-- Loading State -->
-        <div v-if="isLoading" class="loading-state">
+        <div v-if="isLoadingEmployees" class="loading-state">
           <div class="loader"><i class="fas fa-circle-notch fa-spin"></i></div>
           <p>Đang tải danh sách nhân viên...</p>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="isError" class="error-state">
+        <div v-else-if="isEmployeesError" class="error-state">
           <div class="error-icon"><i class="fas fa-exclamation-triangle"></i></div>
           <h3>Đã xảy ra lỗi!</h3>
           <p>Không thể tải danh sách nhân viên. Vui lòng thử lại.</p>
-          <button class="action-btn-primary" @click="refetch">
+          <button class="action-btn-primary" @click="refetchEmployees">
             <i class="fas fa-redo"></i> Thử lại
           </button>
         </div>
