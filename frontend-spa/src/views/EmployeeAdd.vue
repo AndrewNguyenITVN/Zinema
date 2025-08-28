@@ -1,10 +1,11 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import { useEmployees, useAuth } from '@/composables/useAuth'
+import { useAuth } from '@/composables/useAuth'
+import { useEmployees } from '@/composables/useEmployees'
 import EmployeeForm from '@/components/EmployeeForm.vue'
 
 const router = useRouter()
-const { registerEmployee } = useEmployees()
+const { registerEmployee, isRegistering } = useEmployees()
 const { canManageEmployees } = useAuth()
 
 // Redirect if not authorized
@@ -14,7 +15,7 @@ if (!canManageEmployees.value) {
 
 async function handleSubmit(values) {
   try {
-    await registerEmployee.mutate(values)
+    await registerEmployee(values)
 
     alert('Đăng ký nhân viên thành công!')
     router.push({ name: 'employee.list' })
@@ -39,11 +40,7 @@ function goBack() {
         </h1>
       </div>
       <div class="form-body">
-        <EmployeeForm
-          :is-loading="registerEmployee.isLoading"
-          @submit="handleSubmit"
-          @cancel="goBack"
-        />
+        <EmployeeForm :is-loading="isRegistering" @submit="handleSubmit" @cancel="goBack" />
       </div>
     </div>
   </div>

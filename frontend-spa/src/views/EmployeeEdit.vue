@@ -1,27 +1,17 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useQuery } from '@tanstack/vue-query'
-import { useEmployees, useAuth } from '@/composables/useAuth'
+import { useAuth } from '@/composables/useAuth'
+import { useEmployees, useEmployee } from '@/composables/useEmployees'
 import EmployeeForm from '@/components/EmployeeForm.vue'
-import authService from '@/services/auth.service'
 
 const router = useRouter()
 const route = useRoute()
 const employeeId = computed(() => route.params.id)
 
 const { canManageEmployees } = useAuth()
-const { updateEmployee } = useEmployees()
-
-const { 
-  data: employeeData, 
-  isLoading, 
-  isError 
-} = useQuery({
-  queryKey: ['employees', { id: employeeId.value }],
-  queryFn: () => authService.getEmployeeById(employeeId.value),
-  enabled: !!employeeId.value,
-});
+const { updateEmployee, isUpdating } = useEmployees()
+const { data: employeeData, isLoading, isError } = useEmployee(employeeId)
 
 const isEditing = ref(false)
 
@@ -48,7 +38,7 @@ const initialValues = computed(() => {
 
 async function handleUpdateEmployee(values) {
   try {
-    updateEmployee.mutate({
+    updateEmployee({
       id: parseInt(employeeId.value),
       data: values,
     })
@@ -82,9 +72,9 @@ function getInitials(name) {
 
 function formatGender(gender) {
   const genderMap = {
-    'male': 'Nam',
-    'female': 'Nữ',
-    'other': 'Khác'
+    male: 'Nam',
+    female: 'Nữ',
+    other: 'Khác',
   }
   return genderMap[gender] || 'Chưa cập nhật'
 }
@@ -109,8 +99,8 @@ function getRoleClass(role) {
             <p>Xem và cập nhật thông tin nhân viên</p>
           </div>
         </div>
-            </div>
-          </div>
+      </div>
+    </div>
 
     <!-- Page content -->
     <div class="page-content">
@@ -121,7 +111,7 @@ function getRoleClass(role) {
             <i class="fas fa-circle-notch fa-spin"></i>
           </div>
           <p>Đang tải thông tin nhân viên...</p>
-            </div>
+        </div>
 
         <!-- Error state -->
         <div v-else-if="isError" class="error-state">
@@ -134,22 +124,22 @@ function getRoleClass(role) {
             <i class="fas fa-arrow-left"></i>
             Quay lại
           </button>
-              </div>
+        </div>
 
         <!-- Employee Info -->
         <div v-else-if="employeeData?.employee" class="detail-card">
-              <!-- Edit Form -->
-              <EmployeeForm
-                v-if="isEditing"
-                is-edit-mode
-                :initial-values="initialValues"
-                :is-loading="updateEmployee.isLoading"
-                @submit="handleUpdateEmployee"
-                @cancel="isEditing = false"
-              />
+          <!-- Edit Form -->
+          <EmployeeForm
+            v-if="isEditing"
+            is-edit-mode
+            :initial-values="initialValues"
+            :is-loading="isUpdating"
+            @submit="handleUpdateEmployee"
+            @cancel="isEditing = false"
+          />
 
-              <!-- View Mode -->
-              <div v-else class="employee-view">
+          <!-- View Mode -->
+          <div v-else class="employee-view">
             <!-- Employee header -->
             <div class="employee-header">
               <div class="employee-avatar" :class="getRoleClass(employeeData.employee.role)">
@@ -166,7 +156,7 @@ function getRoleClass(role) {
             <!-- Employee details -->
             <div class="detail-section">
               <h3 class="section-title">Thông tin cá nhân</h3>
-              
+
               <div class="detail-grid">
                 <div class="detail-item">
                   <div class="detail-label">
@@ -175,23 +165,27 @@ function getRoleClass(role) {
                   </div>
                   <div class="detail-value">{{ employeeData.employee.id }}</div>
                 </div>
-                
+
                 <div class="detail-item">
                   <div class="detail-label">
                     <i class="fas fa-phone"></i>
                     <span>Số điện thoại</span>
                   </div>
-                  <div class="detail-value">{{ employeeData.employee.phone_number || 'Chưa cập nhật' }}</div>
+                  <div class="detail-value">
+                    {{ employeeData.employee.phone_number || 'Chưa cập nhật' }}
+                  </div>
                 </div>
-                
+
                 <div class="detail-item">
                   <div class="detail-label">
                     <i class="fas fa-envelope"></i>
                     <span>Email</span>
                   </div>
-                  <div class="detail-value">{{ employeeData.employee.email || 'Chưa cập nhật' }}</div>
+                  <div class="detail-value">
+                    {{ employeeData.employee.email || 'Chưa cập nhật' }}
+                  </div>
                 </div>
-                
+
                 <div class="detail-item">
                   <div class="detail-label">
                     <i class="fas fa-venus-mars"></i>
@@ -199,19 +193,21 @@ function getRoleClass(role) {
                   </div>
                   <div class="detail-value">{{ formatGender(employeeData.employee.gender) }}</div>
                 </div>
-                
+
                 <div class="detail-item">
                   <div class="detail-label">
                     <i class="fas fa-birthday-cake"></i>
                     <span>Ngày sinh</span>
                   </div>
                   <div class="detail-value">
-                    {{ employeeData.employee.date_of_birth
-                      ? new Date(employeeData.employee.date_of_birth).toLocaleDateString('vi-VN')
-                      : 'Chưa cập nhật' }}
+                    {{
+                      employeeData.employee.date_of_birth
+                        ? new Date(employeeData.employee.date_of_birth).toLocaleDateString('vi-VN')
+                        : 'Chưa cập nhật'
+                    }}
                   </div>
                 </div>
-                
+
                 <div class="detail-item">
                   <div class="detail-label">
                     <i class="fas fa-briefcase"></i>
@@ -227,7 +223,9 @@ function getRoleClass(role) {
                     <i class="fas fa-map-marker-alt"></i>
                     <span>Địa chỉ</span>
                   </div>
-                  <div class="detail-value">{{ employeeData.employee.address || 'Chưa cập nhật' }}</div>
+                  <div class="detail-value">
+                    {{ employeeData.employee.address || 'Chưa cập nhật' }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -238,7 +236,7 @@ function getRoleClass(role) {
                 <i class="fas fa-edit"></i>
                 <span>Chỉnh sửa thông tin</span>
               </button>
-              
+
               <button class="btn-back" @click="goBack">
                 <i class="fas fa-arrow-left"></i>
                 <span>Quay lại</span>
@@ -546,17 +544,15 @@ function getRoleClass(role) {
   .detail-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .employee-header {
     flex-direction: column;
     text-align: center;
   }
-  
+
   .employee-avatar {
     margin-right: 0;
     margin-bottom: 1rem;
   }
 }
-
-
 </style>
