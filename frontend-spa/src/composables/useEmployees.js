@@ -1,7 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
+import { computed } from 'vue'
 import authService from '@/services/auth.service'
 
 const EMPLOYEES_QUERY_KEY = 'employees'
+
+function toVal(source) {
+  return source && typeof source === 'object' && 'value' in source ? source.value : source
+}
 
 /**
  * Composable để quản lý danh sách nhân viên và các thao tác liên quan.
@@ -16,6 +21,7 @@ export function useEmployees() {
         isLoading: isLoadingEmployees,
         isError: isEmployeesError,
         error: employeesError,
+        refetch: refetchEmployees,
     } = useQuery({
         queryKey: [EMPLOYEES_QUERY_KEY],
         queryFn: authService.getAllEmployees,
@@ -54,6 +60,7 @@ export function useEmployees() {
         isLoadingEmployees,
         isEmployeesError,
         employeesError,
+        refetchEmployees,
 
         // Register
         registerEmployee,
@@ -74,9 +81,10 @@ export function useEmployees() {
  * @param {import('vue').Ref<string|null>|string|null} employeeId - ID của nhân viên cần lấy.
  */
 export function useEmployee(employeeId) {
+    const eid = computed(() => toVal(employeeId))
     return useQuery({
-        queryKey: [EMPLOYEES_QUERY_KEY, { id: employeeId }],
-        queryFn: () => authService.getEmployeeById(employeeId),
-        enabled: !!employeeId,
+        queryKey: [EMPLOYEES_QUERY_KEY, { id: eid }],
+        queryFn: () => authService.getEmployeeById(eid.value),
+        enabled: computed(() => !!eid.value),
     })
 }
