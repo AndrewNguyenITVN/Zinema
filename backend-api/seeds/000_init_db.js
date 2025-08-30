@@ -11,6 +11,7 @@ exports.seed = async function(knex) {
     await knex.schema.dropTableIfExists('food_orders');
     await knex.schema.dropTableIfExists('invoices');
     await knex.schema.dropTableIfExists('tickets');
+    await knex.schema.dropTableIfExists('seat_locks');
     await knex.schema.dropTableIfExists('ticket_bookings');
     await knex.schema.dropTableIfExists('showtimes');
     await knex.schema.dropTableIfExists('seats');
@@ -232,6 +233,22 @@ exports.seed = async function(knex) {
     table.foreign('ticket_booking_id').references('ticket_bookings.id').onDelete('CASCADE');
   });
   console.log('Đã tạo bảng invoices');
+  
+  // Bảng seat_locks - khóa ghế tạm thời
+  await knex.schema.createTable('seat_locks', (table) => {
+      table.increments('id').primary();
+      table.integer('seat_id').unsigned().notNullable();
+      table.integer('showtime_id').unsigned().notNullable();
+      table.integer('locked_by_user_id').unsigned().notNullable();
+      table.datetime('locked_until').notNullable();
+      table.timestamps(true, true);
+
+      table.foreign('seat_id').references('seats.id').onDelete('CASCADE');
+      table.foreign('showtime_id').references('showtimes.id').onDelete('CASCADE');
+      table.foreign('locked_by_user_id').references('accounts.id').onDelete('CASCADE');
+      table.unique(['seat_id', 'showtime_id']);
+  });
+  console.log('Đã tạo bảng seat_locks');
   
   console.log('=== KHỞI TẠO DATABASE HOÀN TẤT ===');
   
