@@ -88,6 +88,14 @@ const confirmBookingSchema = z.object({
   }).optional(),
 }).strict();
 
+// Schema cho khóa/mở khóa ghế
+const lockSeatsSchema = z.object({
+  showtime_id: z.number().positive('ID suất chiếu phải là số dương'),
+  seat_ids: z.array(z.number().positive('ID ghế phải là số dương'))
+    .min(1, 'Phải chọn ít nhất 1 ghế')
+    .max(8, 'Không được chọn quá 8 ghế'),
+}).strict();
+
 // Request schemas - bao bọc các schema cơ bản trong input object
 const getBookingsRequestSchema = z.object({
   query: getBookingsQuerySchema,
@@ -130,4 +138,5 @@ module.exports = {
   updateBookingRequestSchema,
   confirmBookingRequestSchema,
   getBookingByIdRequestSchema,
+  lockSeatsSchema,
 }; 
