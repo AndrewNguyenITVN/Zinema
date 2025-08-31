@@ -32,6 +32,10 @@ function customerRepository() {
   return knex("customers");
 }
 
+function seatLockRepository() {
+    return knex("seat_locks");
+}
+
 /**
  * Helper function: Tạo mã booking duy nhất
  * @returns {string} - Mã booking dạng BK20241201001
@@ -511,7 +515,9 @@ async function createBooking(bookingData, user) {
       customerPhone: customer_phone,
     });
 
-    // Validate showtime exists và chưa bắt đầu
+    // === START: LOGIC KHÓA GHẾ MỚI ===
+
+    // 1. Validate showtime exists và chưa bắt đầu
     const showtime = await showtimeRepository()
       .leftJoin("movies", "showtimes.movie_id", "movies.id")
       .leftJoin("cinema_rooms", "showtimes.cinema_room_id", "cinema_rooms.id")
@@ -532,15 +538,34 @@ async function createBooking(bookingData, user) {
       throw new Error("Không thể đặt vé cho suất chiếu đã bắt đầu");
     }
 
-    // Dọn dẹp các booking pending đã hết hạn (quá 15 phút)
-    const expiredTime = new Date(Date.now() - 15 * 60 * 1000); // 15 phút trước
-    await ticketBookingRepository()
-      .where("status", "pending")
-      .where("created_at", "<", expiredTime)
-      .update({ status: "cancelled" });
+    // 2. Dọn dẹp các booking pending đã hết hạn để giải phóng ghế
+    await cleanupExpiredBookings();
 
-    // Kiểm tra ghế đã được đặt chưa
-    const bookedSeats = await ticketRepository()
+    // 3. Kiểm tra xem ghế có đang bị khóa bởi người khác không
+    // Đồng thời xác nhận là chính người dùng này đã khóa ghế
+    const locks = await seatLockRepository()
+        .where({ showtime_id })
+        .whereIn("seat_id", seatIds);
+
+    const userLockIds = locks
+        .filter(lock => lock.locked_by_user_id === user.id)
+        .map(lock => lock.seat_id);
+
+    const otherUserLocks = locks.filter(lock => lock.locked_by_user_id !== user.id);
+
+    if (otherUserLocks.length > 0) {
+        const lockedSeatIds = otherUserLocks.map(l => l.seat_id);
+        throw new Error(`Ghế ${lockedSeatIds.join(', ')} đang được người khác giữ.`);
+    }
+
+    // Kiểm tra xem người dùng có khóa đủ số ghế họ muốn đặt không
+    if (userLockIds.length !== seatIds.length) {
+        const unlockedSeats = seatIds.filter(id => !userLockIds.includes(id));
+        throw new Error(`Bạn chưa khóa các ghế: ${unlockedSeats.join(', ')}. Vui lòng khóa ghế trước khi đặt.`);
+    }
+
+    // 4. Kiểm tra lần cuối xem ghế đã được đặt (confirmed) chưa (đề phòng trường hợp race condition)
+    const alreadyBookedSeats = await ticketRepository()
       .leftJoin(
         "ticket_bookings",
         "tickets.ticket_booking_id",
@@ -548,13 +573,16 @@ async function createBooking(bookingData, user) {
       )
       .whereIn("tickets.seat_id", seatIds)
       .where("ticket_bookings.showtime_id", showtime_id)
-      .whereIn("ticket_bookings.status", ["pending", "confirmed"])
+      .where("ticket_bookings.status", "confirmed") // Chỉ check confirmed
       .select("tickets.seat_id");
 
-    if (bookedSeats.length > 0) {
-      const bookedSeatIds = bookedSeats.map((seat) => seat.seat_id);
-      throw new Error(`Một số ghế đã được đặt: ${bookedSeatIds.join(", ")}`);
+    if (alreadyBookedSeats.length > 0) {
+      const bookedSeatIds = alreadyBookedSeats.map((seat) => seat.seat_id);
+      throw new Error(`Ghế ${bookedSeatIds.join(", ")} đã được người khác đặt trong lúc bạn thao tác.`);
     }
+
+    // === END: LOGIC KHÓA GHẾ MỚI ===
+
 
     // Xác định customer_id
     let customerId;
@@ -690,6 +718,17 @@ async function createBooking(bookingData, user) {
         updated_at: new Date(),
       });
 
+      // 5. Xóa lock của user sau khi đã đặt vé thành công
+      await seatLockRepository()
+          .transacting(trx)
+          .where({
+              showtime_id: showtime_id,
+              locked_by_user_id: user.id
+          })
+          .whereIn("seat_id", seatIds)
+          .del();
+
+
       return bookingId.id;
     });
 
@@ -790,6 +829,118 @@ async function cleanupExpiredBookings(timeoutMinutes = 15) {
   }
 }
 
+/**
+ * Helper function: Dọn dẹp các seat_locks đã hết hạn
+ */
+async function cleanupExpiredSeatLocks() {
+    try {
+        const now = new Date();
+        const deletedCount = await seatLockRepository().where("locked_until", "<", now).del();
+        if (deletedCount > 0) {
+            console.log(`Cleaned up ${deletedCount} expired seat locks.`);
+        }
+    } catch (error) {
+        console.error("Error cleaning up expired seat locks:", error);
+        // Không throw error để không làm gián đoạn các tiến trình khác
+    }
+}
+
+/**
+ * Khóa các ghế được chọn trong một suất chiếu cụ thể
+ * @param {number} showtimeId - ID của suất chiếu
+ * @param {Array<number>} seatIds - Mảng các ID của ghế cần khóa
+ * @param {Object} user - Thông tin người dùng đang thực hiện
+ * @returns {Promise<Object>} - Thông tin về lock
+ */
+async function lockSeats(showtimeId, seatIds, user) {
+    // Dọn dẹp các lock đã hết hạn trước khi thực hiện
+    await cleanupExpiredSeatLocks();
+
+    const now = new Date();
+    const lockDurationMinutes = 5; // Khóa ghế trong 5 phút
+    const lockedUntil = new Date(now.getTime() + lockDurationMinutes * 60 * 1000);
+
+    // 1. Kiểm tra showtime có hợp lệ không
+    const showtime = await showtimeRepository().where("id", showtimeId).first();
+    if (!showtime || new Date(showtime.start_time) <= now) {
+        throw new Error("Suất chiếu không hợp lệ hoặc đã bắt đầu.");
+    }
+
+    // 2. Kiểm tra xem ghế đã được đặt (confirmed/pending) chưa
+    const bookedSeats = await ticketRepository()
+        .leftJoin("ticket_bookings", "tickets.ticket_booking_id", "ticket_bookings.id")
+        .where("ticket_bookings.showtime_id", showtimeId)
+        .whereIn("ticket_bookings.status", ["confirmed", "pending"])
+        .whereIn("tickets.seat_id", seatIds)
+        .select("tickets.seat_id");
+
+    if (bookedSeats.length > 0) {
+        const bookedSeatIds = bookedSeats.map(s => s.seat_id);
+        throw new Error(`Ghế ${bookedSeatIds.join(', ')} đã được đặt.`);
+    }
+
+    // 3. Kiểm tra xem ghế có đang bị khóa bởi người khác không
+    const existingLocks = await seatLockRepository()
+        .where({ showtime_id: showtimeId })
+        .whereIn("seat_id", seatIds);
+
+    const otherUserLocks = existingLocks.filter(lock => lock.locked_by_user_id !== user.id);
+    if (otherUserLocks.length > 0) {
+        const lockedSeatIds = otherUserLocks.map(l => l.seat_id);
+        throw new Error(`Ghế ${lockedSeatIds.join(', ')} đang được người khác giữ.`);
+    }
+
+    // 4. Bắt đầu transaction để khóa ghế
+    return await knex.transaction(async (trx) => {
+        // Xóa các lock cũ của chính user này trên suất chiếu này để làm mới
+        await seatLockRepository()
+            .transacting(trx)
+            .where({
+                showtime_id: showtimeId,
+                locked_by_user_id: user.id,
+            })
+            .whereIn("seat_id", seatIds)
+            .del();
+
+        // Tạo lock mới
+        const locksToInsert = seatIds.map(seatId => ({
+            seat_id: seatId,
+            showtime_id: showtimeId,
+            locked_by_user_id: user.id,
+            locked_until: lockedUntil,
+        }));
+
+        await seatLockRepository().transacting(trx).insert(locksToInsert);
+
+        return {
+            locked_until: lockedUntil,
+            locked_seats: seatIds
+        };
+    });
+}
+
+
+/**
+ * Mở khóa các ghế đã chọn
+ * @param {number} showtimeId - ID của suất chiếu
+ * @param {Array<number>} seatIds - Mảng các ID của ghế cần mở khóa
+ * @param {Object} user - Thông tin người dùng
+ */
+async function unlockSeats(showtimeId, seatIds, user) {
+    try {
+        await seatLockRepository()
+            .where({
+                showtime_id: showtimeId,
+                locked_by_user_id: user.id
+            })
+            .whereIn("seat_id", seatIds)
+            .del();
+    } catch (error) {
+        console.error("Error unlocking seats:", error);
+        throw new Error("Lỗi khi mở khóa ghế.");
+    }
+}
+
 module.exports = {
   getAllBookings,
   getBookingById,
@@ -801,4 +952,6 @@ module.exports = {
   generateBookingCode,
   canAccessBooking,
   cleanupExpiredBookings,
+  lockSeats,
+  unlockSeats
 };
