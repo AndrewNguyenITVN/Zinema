@@ -286,6 +286,68 @@ async function cleanupExpiredBookings(req, res) {
     }
 }
 
+/**
+ * Khóa ghế tạm thời
+ * POST /api/bookings/lock-seats
+ */
+async function lockSeats(req, res) {
+    try {
+        const { showtime_id, seat_ids } = req.body.input;
+        const user = req.user;
+
+        console.log('Lock seats request:', {
+            showtime_id,
+            seat_ids,
+            user: { id: user.id }
+        });
+
+        const result = await bookingService.lockSeats(showtime_id, seat_ids, user);
+
+        console.log('Lock seats success:', { showtime_id, seat_ids, userId: user.id });
+
+        return res.status(200).json(JSend.success({
+            message: 'Khóa ghế thành công',
+            data: result
+        }));
+    } catch (error) {
+        console.error('Lock seats error:', error);
+        return res.status(500).json(JSend.error('Lỗi khi khóa ghế', {
+            error: error.message
+        }));
+    }
+}
+
+/**
+ * Mở khóa ghế
+ * POST /api/bookings/unlock-seats
+ */
+async function unlockSeats(req, res) {
+    try {
+        const { showtime_id, seat_ids } = req.body.input;
+        const user = req.user;
+
+        console.log('Unlock seats request:', {
+            showtime_id,
+            seat_ids,
+            user: { id: user.id }
+        });
+
+        await bookingService.unlockSeats(showtime_id, seat_ids, user);
+
+        console.log('Unlock seats success:', { showtime_id, seat_ids, userId: user.id });
+
+        return res.status(200).json(JSend.success({
+            message: 'Mở khóa ghế thành công'
+        }));
+    } catch (error) {
+        console.error('Unlock seats error:', error);
+        return res.status(500).json(JSend.error('Lỗi khi mở khóa ghế', {
+            error: error.message
+        }));
+    }
+}
+
+
 module.exports = {
     getAllBookings,
     getBookingById,
@@ -294,5 +356,7 @@ module.exports = {
     createBooking,
     confirmBooking,
     cleanupExpiredBookings,
-    getBookingByCode
+    getBookingByCode,
+    lockSeats,
+    unlockSeats
 }; 
