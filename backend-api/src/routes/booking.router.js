@@ -16,6 +16,7 @@ const {
   confirmBookingSchema,
   updateBookingSchema,
   bookingCodeParamsSchema,
+  lockSeatsSchema
 } = require("../schemas/booking.schemas");
 const { ROLES } = require("../constants");
 
@@ -90,6 +91,40 @@ router.get(
     })
   ),
   bookingController.getBookingByCode
+);
+
+/**
+ * @route POST /api/bookings/lock-seats
+ * @desc Khóa ghế tạm thời
+ * @access Private (All authenticated users)
+ */
+router.post(
+  "/lock-seats",
+  authenticateToken,
+  authorizeRoles([ROLES.ADMIN, ROLES.STAFF, ROLES.CUSTOMER]),
+  validateRequest(
+    z.object({
+      input: lockSeatsSchema.strict(),
+    })
+  ),
+  bookingController.lockSeats
+);
+
+/**
+ * @route POST /api/bookings/unlock-seats
+ * @desc Mở khóa ghế
+ * @access Private (All authenticated users)
+ */
+router.post(
+  "/unlock-seats",
+  authenticateToken,
+  authorizeRoles([ROLES.ADMIN, ROLES.STAFF, ROLES.CUSTOMER]),
+  validateRequest(
+    z.object({
+      input: lockSeatsSchema.strict(),
+    })
+  ),
+  bookingController.unlockSeats
 );
 
 /**
