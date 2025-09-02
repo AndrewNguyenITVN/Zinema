@@ -41,4 +41,6 @@ router.get(
     statisticsController.getDashboardStatistics
 );
 
-module.exports = router;
+module.exports.setup = (app) => {
+    app.use('/api/statistics', router);
+};
