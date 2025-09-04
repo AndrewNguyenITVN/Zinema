@@ -38,7 +38,7 @@ function makeBookingService() {
    * @returns {Promise<Object>} - The created booking data
    */
   async function createBooking(bookingData) {
-    return efetch(baseUrl, {
+    const response = await efetch(baseUrl, {
       method: 'POST',
       headers: {
         ...getAuthHeaders(),
@@ -46,6 +46,7 @@ function makeBookingService() {
       },
       body: JSON.stringify({ input: bookingData }),
     })
+    return response.data ?? response // unwrap if nested
   }
 
   /**
@@ -156,6 +157,42 @@ function makeBookingService() {
     })
   }
 
+  /**
+   * Khóa ghế tạm thời
+   * @param {number} showtimeId ID suất chiếu
+   * @param {number[]} seatIds Mảng ID các ghế
+   * @returns {Promise<Object>}
+   */
+  async function lockSeats(showtimeId, seatIds) {
+    const response = await efetch(`${baseUrl}/lock-seats`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ input: { showtime_id: showtimeId, seat_ids: seatIds } }),
+    })
+    return response.data ?? response
+  }
+
+  /**
+   * Mở khóa ghế
+   * @param {number} showtimeId ID suất chiếu
+   * @param {number[]} seatIds Mảng ID các ghế
+   * @returns {Promise<Object>}
+   */
+  async function unlockSeats(showtimeId, seatIds) {
+    const response = await efetch(`${baseUrl}/unlock-seats`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders(),
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ input: { showtime_id: showtimeId, seat_ids: seatIds } }),
+    })
+    return response.data ?? response
+  }
+
   return {
     createBooking,
     getBookingById,
@@ -165,6 +202,8 @@ function makeBookingService() {
     checkCustomerByPhone,
     createCustomerWithoutAccount,
     cancelBooking,
+    lockSeats,
+    unlockSeats,
   }
 }
 
