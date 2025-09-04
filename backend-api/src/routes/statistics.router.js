@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const statisticsController = require('../controllers/statistics.controller');
-const { requireRoles } = require('../middlewares/auth.middleware');
+const { authorizeRoles } = require('../middlewares/auth.middleware');
 const { ROLES } = require('../constants');
 
 /**
@@ -37,7 +37,7 @@ const { ROLES } = require('../constants');
  */
 router.get(
     '/dashboard',
-    requireRoles([ROLES.ADMIN, ROLES.STAFF]),
+    authorizeRoles([ROLES.ADMIN, ROLES.STAFF]),
     statisticsController.getDashboardStatistics
 );
 
