@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import ShowtimeSelector from '@/components/ShowtimeSelector.vue'
 import SeatPicker from '@/components/SeatPicker.vue'
@@ -127,6 +127,79 @@ const customerPhone = ref('')
 const selectedCustomer = ref(null)
 const isCheckingCustomer = ref(false)
 const showCustomerForm = ref(false)
+const lockedSeatIds = ref([]) // Track locked seats
+
+// --- SEAT LOCKING ---
+let lockTimeout = null
+
+async function updateSeatLock() {
+  clearTimeout(lockTimeout)
+  const newSeatIds = selectedSeats.value.map((s) => s.id)
+
+  // Determine seats to unlock
+  const seatsToUnlock = lockedSeatIds.value.filter((id) => !newSeatIds.includes(id))
+  if (seatsToUnlock.length > 0 && selectedShowtime.value) {
+    try {
+      await bookingService.unlockSeats(selectedShowtime.value.id, seatsToUnlock)
+    } catch (error) {
+      console.warn('Could not unlock seats:', error.message)
+    }
+  }
+
+  // Lock new seats if there are any
+  if (newSeatIds.length > 0 && selectedShowtime.value) {
+    try {
+      const response = await bookingService.lockSeats(selectedShowtime.value.id, newSeatIds)
+      lockedSeatIds.value = newSeatIds
+      console.log('Seats locked until:', response.locked_until)
+      // Set a timeout to warn the user before the lock expires
+      const lockTime = new Date(response.locked_until).getTime() - Date.now() - 30000 // 30s warning
+      if (lockTime > 0) {
+        lockTimeout = setTimeout(() => {
+          alert('Ghế bạn chọn sắp hết hạn giữ. Vui lòng hoàn tất đặt vé.')
+        }, lockTime)
+      }
+    } catch (error) {
+      alert(`Lỗi khi giữ ghế: ${error.message}. Vui lòng thử chọn lại.`)
+      // Deselect seats on the frontend if locking fails
+      selectedSeats.value = selectedSeats.value.filter((s) => !newSeatIds.includes(s.id))
+    }
+  } else {
+    lockedSeatIds.value = []
+  }
+}
+
+// Watch for changes in seat selection
+watch(selectedSeats, updateSeatLock, { deep: true })
+
+// Watch for showtime changes to unlock previous seats
+watch(selectedShowtime, async (newShowtime, oldShowtime) => {
+  clearTimeout(lockTimeout)
+  if (oldShowtime && lockedSeatIds.value.length > 0) {
+    try {
+      await bookingService.unlockSeats(oldShowtime.id, lockedSeatIds.value)
+      console.log('Unlocked seats from previous showtime')
+    } catch (error) {
+      console.warn('Could not unlock old seats:', error)
+    } finally {
+      lockedSeatIds.value = []
+    }
+  }
+})
+
+// Unlock seats when user leaves the page
+onBeforeUnmount(async () => {
+  clearTimeout(lockTimeout)
+  if (lockedSeatIds.value.length > 0 && selectedShowtime.value) {
+    try {
+      await bookingService.unlockSeats(selectedShowtime.value.id, lockedSeatIds.value)
+    } catch (error) {
+      // Non-critical error, just log it
+      console.log('Could not unlock seats before leaving page:', error.message)
+    }
+  }
+})
+// --- END SEAT LOCKING ---
 
 function handleShowtimeSelected(showtime) {
   selectedShowtime.value = showtime
@@ -231,27 +304,25 @@ async function handleConfirmBooking() {
       bookingPayload.customer_phone = selectedCustomer.value.phone_number
     }
 
-    // Create booking (do NOT wrap in { input })
+    // Create booking - backend will now verify the lock
     const createdBookingResponse = await bookingService.createBooking(bookingPayload)
 
-    if (!createdBookingResponse || !createdBookingResponse.data) {
-      throw new Error('Không thể tạo booking. Phản hồi từ server không hợp lệ.')
-    }
-
-    // The actual booking object is nested in the 'data' property
-    const bookingData = createdBookingResponse.data
-    const bookingId = bookingData.id ?? bookingData.bookingId
+    // The backend now returns the created booking directly, no more .data nesting from old code
+    const bookingData = createdBookingResponse
+    const bookingId = bookingData.id
 
     if (!bookingId) {
       throw new Error('Không nhận được ID booking sau khi tạo.')
     }
 
-    // Confirm booking (do NOT wrap in { input, id })
+    // Confirm booking
     await bookingService.confirmBooking(bookingId, {
       payment_method: 'cash', // Giả sử thanh toán tiền mặt
     })
 
     alert('Đặt vé thành công!')
+    // No need to manually unlock, createBooking on backend does it
+    lockedSeatIds.value = []
     // Chuyển hướng đến trang chi tiết booking hoặc trang cá nhân
     if (isStaffOrAdmin.value) {
       router.push({ name: 'staff.dashboard' })
@@ -260,7 +331,7 @@ async function handleConfirmBooking() {
     }
   } catch (error) {
     console.error('Lỗi khi đặt vé:', error)
-    alert('Đã có lỗi xảy ra. Vui lòng thử lại.')
+    alert(`Đã có lỗi xảy ra: ${error.message}. Vui lòng thử lại.`)
   } finally {
     isBooking.value = false
   }
