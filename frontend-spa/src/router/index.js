@@ -181,28 +181,27 @@ router.beforeEach(async (to, from, next) => {
     await authStore.initAuth()
   }
 
-  const { isAuthenticated, userRole } = authStore
-
   const requiresAuth = to.matched.some((record) => record.meta.requiresAuth)
   const requiresGuest = to.matched.some((record) => record.meta.requiresGuest)
 
-  if (requiresAuth && !isAuthenticated) {
+  if (requiresAuth && !authStore.isAuthenticated) {
     // Người dùng chưa đăng nhập, chuyển hướng đến trang login
     return next({ name: 'login', query: { redirect: to.fullPath } })
   }
 
-  if (requiresGuest && isAuthenticated) {
+  if (requiresGuest && authStore.isAuthenticated) {
     // Người dùng đã đăng nhập, không cho vào trang login/register
-    if (userRole === 'admin') return next({ name: 'admin.dashboard' })
-    if (userRole === 'employee' || userRole === 'staff') return next({ name: 'staff.dashboard' })
+    if (authStore.userRole === 'admin') return next({ name: 'admin.dashboard' })
+    if (authStore.userRole === 'employee' || authStore.userRole === 'staff')
+      return next({ name: 'staff.dashboard' })
     return next('/') // Mặc định cho customer
   }
 
   // Kiểm tra quyền truy cập dựa trên vai trò
-  if (requiresAuth && isAuthenticated) {
+  if (requiresAuth && authStore.isAuthenticated) {
     const requiredRoles = to.meta.roles
     if (requiredRoles && requiredRoles.length > 0) {
-      if (!requiredRoles.includes(userRole)) {
+      if (!requiredRoles.includes(authStore.userRole)) {
         // Vai trò không phù hợp, chuyển hướng đến trang cấm
         return next({ name: 'forbidden' })
       }
