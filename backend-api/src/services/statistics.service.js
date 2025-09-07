@@ -79,6 +79,7 @@ async function getRevenueByMovie({ period = 'all' } = {}) {
         .join('ticket_bookings', 'showtimes.id', 'ticket_bookings.showtime_id')
         .join('invoices', 'ticket_bookings.id', 'invoices.ticket_booking_id')
         .where('invoices.payment_status', 'paid')
+        .where('movies.status', 'active') // Chỉ lấy phim đang chiếu
         .groupBy('movies.id')
         .orderBy('totalRevenue', 'desc');
 
