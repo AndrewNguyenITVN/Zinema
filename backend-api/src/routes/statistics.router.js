@@ -41,6 +41,58 @@ router.get(
     statisticsController.getDashboardStatistics
 );
 
+/**
+ * @openapi
+ * /api/statistics/revenue/summary:
+ *   get:
+ *     summary: Lấy thống kê doanh thu tổng hợp (ngày, tuần, tháng)
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trả về các số liệu doanh thu.
+ *       401:
+ *         description: Unauthorized.
+ *       403:
+ *         description: Forbidden.
+ */
+router.get(
+    '/revenue/summary',
+    authorizeRoles([ROLES.ADMIN]),
+    statisticsController.getRevenueSummary
+);
+
+/**
+ * @openapi
+ * /api/statistics/revenue/by-movie:
+ *   get:
+ *     summary: Lấy thống kê doanh thu theo từng phim
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: period
+ *         schema:
+ *           type: string
+ *           enum: [today, week, month, all]
+ *           default: all
+ *         description: Lọc theo khoảng thời gian
+ *     responses:
+ *       200:
+ *         description: Trả về danh sách phim và doanh thu tương ứng.
+ *       401:
+ *         description: Unauthorized.
+ *       403:
+ *         description: Forbidden.
+ */
+router.get(
+    '/revenue/by-movie',
+    authorizeRoles([ROLES.ADMIN]),
+    statisticsController.getRevenueByMovie
+);
+
 module.exports.setup = (app) => {
     app.use('/api/statistics', router);
 };
