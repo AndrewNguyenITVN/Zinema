@@ -1,7 +1,28 @@
 <script setup>
 import { useAuth } from '@/composables/useAuth'
+import { onMounted, ref } from 'vue'
+import statisticsService from '@/services/statistics.service'
 
 const { isAdmin } = useAuth()
+const stats = ref({
+  ticketsSoldToday: 0,
+})
+const isLoading = ref(true)
+const error = ref(null)
+
+onMounted(async () => {
+  try {
+    isLoading.value = true
+    error.value = null
+    const response = await statisticsService.getDashboardStatistics()
+    stats.value.ticketsSoldToday = response.ticketsSoldToday || 0
+  } catch (err) {
+    error.value = err.message || 'Không thể tải dữ liệu thống kê.'
+    console.error(err)
+  } finally {
+    isLoading.value = false
+  }
+})
 </script>
 
 <template>
@@ -24,7 +45,7 @@ const { isAdmin } = useAuth()
             <i class="fas fa-ticket-alt"></i>
           </div>
           <div class="stat-content">
-            <h3>154</h3>
+            <h3 v-if="!isLoading">{{ stats.ticketsSoldToday }}</h3>
             <p>Vé đã bán hôm nay</p>
           </div>
         </div>
@@ -84,7 +105,7 @@ const { isAdmin } = useAuth()
         <div class="management-card">
           <div class="card-icon">
             <i class="fas fa-user-friends"></i>
-            </div>
+          </div>
           <div class="card-content">
             <h3>Quản lý khách hàng</h3>
             <p>Xem và cập nhật thông tin khách hàng</p>
@@ -98,7 +119,7 @@ const { isAdmin } = useAuth()
         <div class="management-card">
           <div class="card-icon">
             <i class="fas fa-film"></i>
-            </div>
+          </div>
           <div class="card-content">
             <h3>Quản lý phim</h3>
             <p>Thêm, xóa, sửa thông tin phim chiếu</p>
@@ -112,7 +133,7 @@ const { isAdmin } = useAuth()
         <div class="management-card">
           <div class="card-icon">
             <i class="fas fa-couch"></i>
-            </div>
+          </div>
           <div class="card-content">
             <h3>Quản lý phòng chiếu</h3>
             <p>Quản lý suất chiếu và sắp xếp phòng</p>
