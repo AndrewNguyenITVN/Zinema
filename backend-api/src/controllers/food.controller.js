@@ -148,6 +148,40 @@ async function deleteAllFoods(req, res, next) {
   }
 }
 
+/**
+ * Upload hình ảnh cho món ăn
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @param {Function} next - Express next middleware
+ */
+async function uploadFoodImage(req, res, next) {
+    const { id } = req.params;
+
+    // req.file được cung cấp bởi middleware multer
+    if (!req.file) {
+        return next(new ApiError(400, "Không có file nào được tải lên."));
+    }
+
+    try {
+        // Tạo đường dẫn URL công khai cho file ảnh
+        const imageUrl = `/images/foods/${req.file.filename}`;
+
+        // Cập nhật đường dẫn ảnh trong database
+        const updatedFood = await foodService.updateFood(id, { image_url: imageUrl });
+
+        if (!updatedFood) {
+            return next(new ApiError(404, "Food not found"));
+        }
+
+        return res.json(JSend.success({
+            food: updatedFood
+        }));
+    } catch (error) {
+        console.log(error);
+        return next(new ApiError(500, "Internal Server Error"));
+    }
+}
+
 module.exports = {
   getAllFoods,
   getFoodById,
@@ -155,4 +189,5 @@ module.exports = {
   updateFood,
   deleteFood,
   deleteAllFoods,
+  uploadFoodImage,
 };

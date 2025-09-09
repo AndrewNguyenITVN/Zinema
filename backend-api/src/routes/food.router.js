@@ -4,6 +4,7 @@ const { z } = require("zod");
 const foodController = require("../controllers/food.controller");
 const { methodNotAllowed } = require("../controllers/errors.controller");
 const { validateRequest } = require("../middlewares/validator.middleware");
+const foodImageUpload = require("../middlewares/food-image-upload.middleware");
 const {
   authenticateToken,
   authorizeRoles,
@@ -121,4 +122,20 @@ module.exports.setup = (app) => {
   );
 
   router.all("/:id", methodNotAllowed);
+
+  // POST /api/foods/:id/image - Upload ảnh cho món ăn (chỉ admin)
+  router.post(
+    "/:id/image",
+    [
+      authenticateToken,
+      authorizeRoles([ROLES.ADMIN]),
+      validateRequest(
+        z.object({
+          input: foodSchema.pick({ id: true }).strict(),
+        })
+      ),
+      foodImageUpload, // Middleware xử lý upload file
+    ],
+    foodController.uploadFoodImage
+  );
 };
