@@ -55,6 +55,59 @@ class FoodService {
     
     return data
   }
+
+  async createFood(foodData) {
+    const token = localStorage.getItem('cinema_token');
+    return await efetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(foodData),
+    });
+  }
+
+  async updateFood(id, foodData) {
+    const token = localStorage.getItem('cinema_token');
+    return await efetch(`${this.baseUrl}/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(foodData),
+    });
+  }
+
+  async deleteFood(id) {
+    const token = localStorage.getItem('cinema_token');
+    return await efetch(`${this.baseUrl}/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+  }
+
+  async uploadFoodImage(id, formData) {
+    const token = localStorage.getItem('cinema_token');
+    // efetch expects JSON, so we use fetch directly for FormData
+    const response = await fetch(`${this.baseUrl}/${id}/image`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Image upload failed');
+    }
+
+    return await response.json();
+  }
 }
 
 export default new FoodService() 
