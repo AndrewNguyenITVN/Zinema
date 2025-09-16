@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const statisticsController = require('../controllers/statistics.controller');
-const { authorizeRoles } = require('../middlewares/auth.middleware');
+const { authorizeRoles, authenticateToken } = require('../middlewares/auth.middleware');
 const { ROLES } = require('../constants');
 
 /**
@@ -37,6 +37,7 @@ const { ROLES } = require('../constants');
  */
 router.get(
     '/dashboard',
+    authenticateToken,
     authorizeRoles([ROLES.ADMIN, ROLES.STAFF]),
     statisticsController.getDashboardStatistics
 );
@@ -59,6 +60,7 @@ router.get(
  */
 router.get(
     '/revenue/summary',
+    authenticateToken,
     authorizeRoles([ROLES.ADMIN]),
     statisticsController.getRevenueSummary
 );
@@ -89,6 +91,7 @@ router.get(
  */
 router.get(
     '/revenue/by-movie',
+    authenticateToken,
     authorizeRoles([ROLES.ADMIN]),
     statisticsController.getRevenueByMovie
 );
