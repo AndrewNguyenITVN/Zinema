@@ -9,20 +9,20 @@ async function getDashboardStatistics() {
     const ticketsSoldTodayResult = await knex('tickets')
         .join('ticket_bookings', 'tickets.ticket_booking_id', 'ticket_bookings.id')
         .whereIn('ticket_bookings.status', ['confirmed', 'completed'])
-        .whereRaw('DATE(ticket_bookings.booking_date) = CURDATE()')
+        .whereRaw("DATE(ticket_bookings.booking_date) = DATE('now')")
         .count('tickets.id as count')
         .first();
 
     // Thống kê doanh thu trong ngày
     const revenueTodayResult = await knex('invoices')
         .where('payment_status', 'paid')
-        .whereRaw('DATE(payment_date) = CURDATE()')
+        .whereRaw("DATE(payment_date) = DATE('now')")
         .sum('amount as total')
         .first();
 
     // Thống kê đơn đặt vé trong ngày
     const bookingsTodayResult = await knex('ticket_bookings')
-        .whereRaw('DATE(booking_date) = CURDATE()')
+        .whereRaw("DATE(booking_date) = DATE('now')")
         .count('id as count')
         .first();
     
@@ -43,19 +43,19 @@ async function getDashboardStatistics() {
 async function getRevenueSummary() {
     const revenueTodayResult = await knex('invoices')
         .where('payment_status', 'paid')
-        .whereRaw('DATE(payment_date) = CURDATE()')
+        .whereRaw("DATE(payment_date) = DATE('now')")
         .sum('amount as total')
         .first();
 
     const revenueThisWeekResult = await knex('invoices')
         .where('payment_status', 'paid')
-        .whereRaw('YEARWEEK(payment_date, 1) = YEARWEEK(CURDATE(), 1)')
+        .whereRaw("strftime('%Y-%W', payment_date) = strftime('%Y-%W', 'now')")
         .sum('amount as total')
         .first();
         
     const revenueThisMonthResult = await knex('invoices')
         .where('payment_status', 'paid')
-        .whereRaw('YEAR(payment_date) = YEAR(CURDATE()) AND MONTH(payment_date) = MONTH(CURDATE())')
+        .whereRaw("strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')")
         .sum('amount as total')
         .first();
 
@@ -84,11 +84,11 @@ async function getRevenueByMovie({ period = 'all' } = {}) {
         .orderBy('totalRevenue', 'desc');
 
     if (period === 'today') {
-        query.whereRaw('DATE(invoices.payment_date) = CURDATE()');
+        query.whereRaw("DATE(invoices.payment_date) = DATE('now')");
     } else if (period === 'week') {
-        query.whereRaw('YEARWEEK(invoices.payment_date, 1) = YEARWEEK(CURDATE(), 1)');
+        query.whereRaw("strftime('%Y-%W', invoices.payment_date) = strftime('%Y-%W', 'now')");
     } else if (period === 'month') {
-        query.whereRaw('YEAR(invoices.payment_date) = YEAR(CURDATE()) AND MONTH(invoices.payment_date) = MONTH(CURDATE())');
+        query.whereRaw("strftime('%Y-%m', invoices.payment_date) = strftime('%Y-%m', 'now')");
     }
 
     const result = await query;
@@ -106,17 +106,17 @@ async function getTicketsSoldSummary() {
     };
 
     const ticketsTodayResult = await commonQuery(knex('tickets'))
-        .whereRaw('DATE(ticket_bookings.booking_date) = CURDATE()')
+        .whereRaw("DATE(ticket_bookings.booking_date) = DATE('now')")
         .count('tickets.id as count')
         .first();
 
     const ticketsThisWeekResult = await commonQuery(knex('tickets'))
-        .whereRaw('YEARWEEK(ticket_bookings.booking_date, 1) = YEARWEEK(CURDATE(), 1)')
+        .whereRaw("strftime('%Y-%W', ticket_bookings.booking_date) = strftime('%Y-%W', 'now')")
         .count('tickets.id as count')
         .first();
         
     const ticketsThisMonthResult = await commonQuery(knex('tickets'))
-        .whereRaw('YEAR(ticket_bookings.booking_date) = YEAR(CURDATE()) AND MONTH(ticket_bookings.booking_date) = MONTH(CURDATE())')
+        .whereRaw("strftime('%Y-%m', ticket_bookings.booking_date) = strftime('%Y-%m', 'now')")
         .count('tickets.id as count')
         .first();
 
@@ -145,14 +145,14 @@ async function getOccupancyRateSummary({ period = 'all' } = {}) {
 
     // Áp dụng filter thời gian cho cả 2 query
     if (period === 'today') {
-        ticketsQuery.whereRaw('DATE(showtimes.start_time) = CURDATE()');
-        capacityQuery.whereRaw('DATE(showtimes.start_time) = CURDATE()');
+        ticketsQuery.whereRaw("DATE(showtimes.start_time) = DATE('now')");
+        capacityQuery.whereRaw("DATE(showtimes.start_time) = DATE('now')");
     } else if (period === 'week') {
-        ticketsQuery.whereRaw('YEARWEEK(showtimes.start_time, 1) = YEARWEEK(CURDATE(), 1)');
-        capacityQuery.whereRaw('YEARWEEK(showtimes.start_time, 1) = YEARWEEK(CURDATE(), 1)');
+        ticketsQuery.whereRaw("strftime('%Y-%W', showtimes.start_time) = strftime('%Y-%W', 'now')");
+        capacityQuery.whereRaw("strftime('%Y-%W', showtimes.start_time) = strftime('%Y-%W', 'now')");
     } else if (period === 'month') {
-        ticketsQuery.whereRaw('YEAR(showtimes.start_time) = YEAR(CURDATE()) AND MONTH(showtimes.start_time) = MONTH(CURDATE())');
-        capacityQuery.whereRaw('YEAR(showtimes.start_time) = YEAR(CURDATE()) AND MONTH(showtimes.start_time) = MONTH(CURDATE())');
+        ticketsQuery.whereRaw("strftime('%Y-%m', showtimes.start_time) = strftime('%Y-%m', 'now')");
+        capacityQuery.whereRaw("strftime('%Y-%m', showtimes.start_time) = strftime('%Y-%m', 'now')");
     }
 
     const totalTicketsSoldResult = await ticketsQuery.count('tickets.id as count').first();
