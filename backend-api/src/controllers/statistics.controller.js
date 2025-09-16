@@ -1,5 +1,6 @@
 const statisticsService = require('../services/statistics.service');
-const { Jsend, JsendError } = require('../jsend');
+const JSend = require('../jsend');
+const ApiError = require('../api-error');
 
 /**
  * Controller để lấy các thống kê cho dashboard
@@ -7,9 +8,9 @@ const { Jsend, JsendError } = require('../jsend');
 async function getDashboardStatistics(req, res, next) {
     try {
         const stats = await statisticsService.getDashboardStatistics();
-        res.status(200).json(new Jsend(stats));
+        res.status(200).json(JSend.success(stats));
     } catch (error) {
-        next(new JsendError(error.message));
+        next(new ApiError());
     }
 }
 
@@ -19,9 +20,9 @@ async function getDashboardStatistics(req, res, next) {
 async function getRevenueSummary(req, res, next) {
     try {
         const stats = await statisticsService.getRevenueSummary();
-        res.status(200).json(new Jsend(stats));
+        res.status(200).json(JSend.success(stats));
     } catch (error) {
-        next(new JsendError(error.message));
+        next(new ApiError());
     }
 }
 
@@ -32,9 +33,9 @@ async function getRevenueByMovie(req, res, next) {
     try {
         const { period } = req.query; // e.g., 'today', 'week', 'month'
         const stats = await statisticsService.getRevenueByMovie({ period });
-        res.status(200).json(new Jsend(stats));
+        res.status(200).json(JSend.success(stats));
     } catch (error) {
-        next(new JsendError(error.message));
+        next(new ApiError());
     }
 }
 
