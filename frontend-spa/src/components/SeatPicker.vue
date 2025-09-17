@@ -57,7 +57,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, computed } from 'vue'
+import { ref, watch, onMounted, computed, onBeforeUnmount } from 'vue'
 import showtimeService from '@/services/showtime.service'
 
 const props = defineProps({
@@ -78,27 +78,72 @@ const loading = ref(false)
 const error = ref(null)
 const seatData = ref(null)
 const selectedSeats = ref([])
+let pollInterval = null // Polling interval
 
 async function fetchSeatMap() {
   if (!props.showtimeId) return
-  loading.value = true
+  // Chỉ hiển thị loading lần đầu
+  if (!seatData.value) {
+    loading.value = true
+  }
   error.value = null
-  selectedSeats.value = [] // Reset khi đổi suất chiếu
 
   try {
     const data = await showtimeService.getSeatsForShowtime(props.showtimeId)
     seatData.value = data
+
+    // Loại bỏ các ghế đã chọn nhưng giờ đã bị khóa hoặc đặt
+    const currentSelectedIds = selectedSeats.value.map(s => s.id)
+    const validSelectedSeats = []
+    currentSelectedIds.forEach(id => {
+      const seatFromServer = data.seats.find(s => s.id === id)
+      // Giữ lại ghế nếu nó vẫn available và đang được chính mình chọn
+      if (seatFromServer && seatFromServer.status === 'available' && isSelected({ id })) {
+        validSelectedSeats.push(seatFromServer)
+      }
+    })
+    selectedSeats.value = validSelectedSeats
+
   } catch (err) {
     error.value = 'Không thể tải sơ đồ ghế. Vui lòng thử lại.'
     console.error(err)
+    stopPolling() // Dừng lại nếu có lỗi
   } finally {
     loading.value = false
   }
 }
 
+// --- Polling Logic ---
+function startPolling() {
+  stopPolling() // Đảm bảo không có interval nào đang chạy
+  if (props.showtimeId) {
+    pollInterval = setInterval(fetchSeatMap, 5000) // Lấy dữ liệu mỗi 5 giây
+  }
+}
+
+function stopPolling() {
+  if (pollInterval) {
+    clearInterval(pollInterval)
+    pollInterval = null
+  }
+}
+
 // Fetch khi component được mount hoặc khi showtimeId thay đổi
-onMounted(fetchSeatMap)
-watch(() => props.showtimeId, fetchSeatMap)
+onMounted(() => {
+  fetchSeatMap()
+  startPolling()
+})
+
+onBeforeUnmount(() => {
+  stopPolling()
+})
+
+watch(() => props.showtimeId, () => {
+  selectedSeats.value = [] // Reset khi đổi suất chiếu
+  fetchSeatMap()
+  startPolling() // Khởi động lại polling cho showtime mới
+})
+// --- End Polling Logic ---
 
 const gridStyle = computed(() => {
   if (!seatData.value?.room) return {}
@@ -108,7 +153,7 @@ const gridStyle = computed(() => {
 })
 
 function toggleSeat(seat) {
-  if (seat.status === 'booked') return
+  if (seat.status === 'booked' || seat.status === 'locked') return
 
   const index = selectedSeats.value.findIndex((s) => s.id === seat.id)
   if (index > -1) {
@@ -213,7 +258,8 @@ const formatPrice = (price) =>
 }
 
 /* Status Override Styles */
-.seat.booked {
+.seat.booked,
+.seat.locked {
   background-color: #6b7280;
   color: #d1d5db;
   cursor: not-allowed;
