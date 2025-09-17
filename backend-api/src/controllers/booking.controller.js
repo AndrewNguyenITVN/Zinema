@@ -1,11 +1,12 @@
 const bookingService = require('../services/booking.service');
 const JSend = require('../jsend');
+const ApiError = require('../api-error');
 
 /**
  * Lấy danh sách tất cả bookings
  * GET /api/bookings
  */
-async function getAllBookings(req, res) {
+async function getAllBookings(req, res, next) {
     try {
         const queryParams = req.query;
         const user = req.user; // Từ auth middleware
@@ -30,7 +31,7 @@ async function getAllBookings(req, res) {
         }));
     } catch (error) {
         console.error('Get all bookings error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi lấy danh sách booking', {
+        return next(new ApiError(500, 'Lỗi khi lấy danh sách booking', {
             error: error.message
         }));
     }
@@ -40,7 +41,7 @@ async function getAllBookings(req, res) {
  * Lấy thông tin chi tiết booking theo ID
  * GET /api/bookings/:id
  */
-async function getBookingById(req, res) {
+async function getBookingById(req, res, next) {
     try {
         const { id } = req.params;
         const user = req.user; // Từ auth middleware
@@ -54,7 +55,7 @@ async function getBookingById(req, res) {
 
         if (!booking) {
             console.log('Booking not found or access denied:', { bookingId: id, userId: user.id });
-            return res.status(404).json(JSend.fail('Không tìm thấy booking hoặc bạn không có quyền truy cập'));
+            return next(new ApiError(404, 'Không tìm thấy booking hoặc bạn không có quyền truy cập'));
         }
 
         console.log('Get booking by ID success:', {
@@ -68,7 +69,7 @@ async function getBookingById(req, res) {
         }));
     } catch (error) {
         console.error('Get booking by ID error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi lấy thông tin booking', {
+        return next(new ApiError(500, 'Lỗi khi lấy thông tin booking', {
             error: error.message
         }));
     }
@@ -78,7 +79,7 @@ async function getBookingById(req, res) {
  * Lấy thông tin chi tiết booking theo mã booking
  * GET /api/bookings/code/:code
  */
-async function getBookingByCode(req, res) {
+async function getBookingByCode(req, res, next) {
     try {
         const { code } = req.params;
         const user = req.user;
@@ -86,7 +87,7 @@ async function getBookingByCode(req, res) {
         const booking = await bookingService.getBookingByCode(code, user);
 
         if (!booking) {
-            return res.status(404).json(JSend.fail('Không tìm thấy booking với mã này hoặc bạn không có quyền truy cập.'));
+            return next(new ApiError(404, 'Không tìm thấy booking với mã này hoặc bạn không có quyền truy cập.'));
         }
 
         return res.status(200).json(JSend.success({
@@ -95,7 +96,7 @@ async function getBookingByCode(req, res) {
         }));
     } catch (error) {
         console.error('Get booking by code error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi lấy thông tin booking', {
+        return next(new ApiError(500, 'Lỗi khi lấy thông tin booking', {
             error: error.message
         }));
     }
@@ -105,7 +106,7 @@ async function getBookingByCode(req, res) {
  * Cập nhật booking
  * PUT /api/bookings/:id
  */
-async function updateBooking(req, res) {
+async function updateBooking(req, res, next) {
     try {
         const { id } = req.params;
         const updateData = req.body.input;
@@ -121,7 +122,7 @@ async function updateBooking(req, res) {
 
         if (!updatedBooking) {
             console.log('Booking not found or access denied for update:', { bookingId: id, userId: user.id });
-            return res.status(404).json(JSend.fail('Không tìm thấy booking hoặc bạn không có quyền cập nhật'));
+            return next(new ApiError(404, 'Không tìm thấy booking hoặc bạn không có quyền cập nhật'));
         }
 
         console.log('Update booking success:', {
@@ -135,7 +136,7 @@ async function updateBooking(req, res) {
         }));
     } catch (error) {
         console.error('Update booking error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi cập nhật booking', {
+        return next(new ApiError(500, 'Lỗi khi cập nhật booking', {
             error: error.message
         }));
     }
@@ -145,7 +146,7 @@ async function updateBooking(req, res) {
  * Xóa booking (chỉ admin)
  * DELETE /api/bookings/:id
  */
-async function deleteBooking(req, res) {
+async function deleteBooking(req, res, next) {
     try {
         const { id } = req.params;
         const user = req.user; // Từ auth middleware
@@ -159,7 +160,7 @@ async function deleteBooking(req, res) {
 
         if (!success) {
             console.log('Booking not found or access denied for delete:', { bookingId: id, userId: user.id });
-            return res.status(404).json(JSend.fail('Không tìm thấy booking hoặc bạn không có quyền xóa'));
+            return next(new ApiError(404, 'Không tìm thấy booking hoặc bạn không có quyền xóa'));
         }
 
         console.log('Delete booking success:', { bookingId: id });
@@ -169,7 +170,7 @@ async function deleteBooking(req, res) {
         }));
     } catch (error) {
         console.error('Delete booking error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi xóa booking', {
+        return next(new ApiError(500, 'Lỗi khi xóa booking', {
             error: error.message
         }));
     }
@@ -179,7 +180,7 @@ async function deleteBooking(req, res) {
  * Tạo booking mới
  * POST /api/bookings
  */
-async function createBooking(req, res) {
+async function createBooking(req, res, next) {
     try {
         // Extract booking data from req.body.input (not req.body)
         const bookingData = req.body.input;
@@ -203,7 +204,7 @@ async function createBooking(req, res) {
         }));
     } catch (error) {
         console.error('Create booking error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi tạo booking', {
+        return next(new ApiError(500, 'Lỗi khi tạo booking', {
             error: error.message
         }));
     }
@@ -213,7 +214,7 @@ async function createBooking(req, res) {
  * Xác nhận booking và thanh toán
  * POST /api/bookings/:id/confirm
  */
-async function confirmBooking(req, res) {
+async function confirmBooking(req, res, next) {
     try {
         const { id } = req.params;
         // Extract confirm data from req.body.input
@@ -230,7 +231,7 @@ async function confirmBooking(req, res) {
 
         if (!confirmedBooking) {
             console.log('Booking not found or access denied for confirm:', { bookingId: id, userId: user.id });
-            return res.status(404).json(JSend.fail('Không tìm thấy booking hoặc bạn không có quyền xác nhận'));
+            return next(new ApiError(404, 'Không tìm thấy booking hoặc bạn không có quyền xác nhận'));
         }
 
         console.log('Confirm booking success:', {
@@ -245,7 +246,7 @@ async function confirmBooking(req, res) {
         }));
     } catch (error) {
         console.error('Confirm booking error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi xác nhận booking', {
+        return next(new ApiError(500, 'Lỗi khi xác nhận booking', {
             error: error.message
         }));
     }
@@ -255,13 +256,13 @@ async function confirmBooking(req, res) {
  * Dọn dẹp các booking pending đã hết hạn
  * POST /api/bookings/cleanup
  */
-async function cleanupExpiredBookings(req, res) {
+async function cleanupExpiredBookings(req, res, next) {
     try {
         const user = req.user; // Từ auth middleware
 
         // Chỉ admin mới có quyền cleanup
         if (user.role !== 'admin') {
-            return res.status(403).json(JSend.fail('Bạn không có quyền thực hiện thao tác này'));
+            return next(new ApiError(403, 'Bạn không có quyền thực hiện thao tác này'));
         }
 
         console.log('Cleanup expired bookings request:', {
@@ -280,7 +281,7 @@ async function cleanupExpiredBookings(req, res) {
         }));
     } catch (error) {
         console.error('Cleanup expired bookings error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi dọn dẹp booking hết hạn', {
+        return next(new ApiError(500, 'Lỗi khi dọn dẹp booking hết hạn', {
             error: error.message
         }));
     }
@@ -290,7 +291,7 @@ async function cleanupExpiredBookings(req, res) {
  * Khóa ghế tạm thời
  * POST /api/bookings/lock-seats
  */
-async function lockSeats(req, res) {
+async function lockSeats(req, res, next) {
     try {
         const { showtime_id, seat_ids } = req.body.input;
         const user = req.user;
@@ -311,7 +312,7 @@ async function lockSeats(req, res) {
         }));
     } catch (error) {
         console.error('Lock seats error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi khóa ghế', {
+        return next(new ApiError(500, 'Lỗi khi khóa ghế', {
             error: error.message
         }));
     }
@@ -321,7 +322,7 @@ async function lockSeats(req, res) {
  * Mở khóa ghế
  * POST /api/bookings/unlock-seats
  */
-async function unlockSeats(req, res) {
+async function unlockSeats(req, res, next) {
     try {
         const { showtime_id, seat_ids } = req.body.input;
         const user = req.user;
@@ -341,7 +342,7 @@ async function unlockSeats(req, res) {
         }));
     } catch (error) {
         console.error('Unlock seats error:', error);
-        return res.status(500).json(JSend.error('Lỗi khi mở khóa ghế', {
+        return next(new ApiError(500, 'Lỗi khi mở khóa ghế', {
             error: error.message
         }));
     }
