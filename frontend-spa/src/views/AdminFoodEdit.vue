@@ -94,7 +94,7 @@ import { useFoodById, useFoods } from '@/composables/useFoods'
 import foodService from '@/services/food.service'
 
 const props = defineProps({
-  foodId: {
+  id: {
     type: [String, Number],
     required: true,
   },
@@ -102,7 +102,7 @@ const props = defineProps({
 
 const router = useRouter()
 const { updateFood, isUpdatingFood } = useFoods()
-const { data: foodData, isLoading, error, refetch } = useFoodById(props.foodId)
+const { data: foodData, isLoading, error, refetch } = useFoodById(props.id)
 
 const food = ref(null)
 const imageFile = ref(null)
@@ -143,13 +143,13 @@ function handleImageChange(event) {
 async function handleSubmit() {
   try {
     // Update food details
-    await updateFood.mutateAsync({ id: props.foodId, data: form })
+    await updateFood.mutateAsync({ id: props.id, data: form })
 
     // Upload new image if selected
     if (imageFile.value) {
       const formData = new FormData()
       formData.append('image', imageFile.value)
-      await foodService.uploadFoodImage(props.foodId, formData)
+      await foodService.uploadFoodImage(props.id, formData)
     }
 
     alert('Cập nhật món ăn thành công!')
