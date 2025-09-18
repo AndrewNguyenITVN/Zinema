@@ -23,6 +23,11 @@ const AdminMovieList = () => import('@/views/AdminMovieList.vue')
 const MovieAddPage = () => import('@/views/MovieAddPage.vue')
 const MovieDetailPage = () => import('@/views/MovieDetailPage.vue')
 
+// Food Management
+const AdminFoodList = () => import('@/views/AdminFoodList.vue')
+const AdminFoodAdd = () => import('@/views/AdminFoodAdd.vue')
+const AdminFoodEdit = () => import('@/views/AdminFoodEdit.vue')
+
 const routes = [
   // Public routes
   {
@@ -150,6 +155,27 @@ const routes = [
     component: MovieDetailPage,
     meta: { requiresAuth: true, roles: ['admin', 'employee', 'staff'] },
     props: (route) => ({ movieId: route.params.id }),
+  },
+
+  // Food Management (Admin + Employee)
+  {
+    path: '/admin/foods',
+    name: 'admin.foods',
+    component: AdminFoodList,
+    meta: { requiresAuth: true, roles: ['admin', 'employee', 'staff'] },
+  },
+  {
+    path: '/admin/foods/add',
+    name: 'admin.foods.add',
+    component: AdminFoodAdd,
+    meta: { requiresAuth: true, roles: ['admin', 'employee', 'staff'] },
+  },
+  {
+    path: '/admin/foods/:id/edit',
+    name: 'admin.foods.edit',
+    component: AdminFoodEdit,
+    meta: { requiresAuth: true, roles: ['admin', 'employee', 'staff'] },
+    props: true,
   },
 
   // Error pages
