@@ -56,9 +56,11 @@ async function getAllFoods(query) {
             if (category) {
                 builder.where('category', 'ilike', `%${category}%`);
             }
-            // Lọc theo trạng thái có sẵn
+            // Lọc theo trạng thái có sẵn - Mặc định là true
             if (is_available !== undefined) {
                 builder.where('is_available', is_available);
+            } else {
+                builder.where('is_available', true);
             }
             // Lọc theo khoảng giá
             if (min_price !== undefined) {
@@ -177,18 +179,22 @@ async function updateFood(id, updateData) {
 /**
  * Xóa món ăn theo ID
  * @param {number} id - ID của món ăn cần xóa
- * @returns {Promise<boolean>} - true nếu xóa thành công, false nếu không tìm thấy
+ * @returns {Promise<Object|null>} - Object chứa thông tin food đã được "xóa" hoặc null nếu không tìm thấy
  */
 async function deleteFood(id) {
-    // Kiểm tra food có tồn tại không
+  try {
+    // Tìm món ăn trước khi "xóa"
     const food = await foodRepository().where('id', id).first();
     if (!food) {
-        return false;
+      return null; // Trả về null nếu không tìm thấy
     }
-
-    // Xóa food
-    await foodRepository().where('id', id).del();
-    return true;
+    // Thực hiện xóa mềm
+    await foodRepository().where('id', id).update({ is_available: false, updated_at: new Date() });
+    return { ...food, is_available: false }; // Trả về món ăn đã được "xóa"
+  } catch (error) {
+    console.error(`Error soft deleting food with ID ${id}:`, error);
+    throw error;
+  }
 }
 
 /**

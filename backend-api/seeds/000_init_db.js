@@ -172,7 +172,7 @@ exports.seed = async function(knex) {
     table.decimal('price', 10, 2).notNullable();
     table.string('image_url', 255);
     table.string('category', 50);
-    table.boolean('is_available').defaultTo(true);
+    table.boolean('is_available').defaultTo(true).notNullable();
     table.timestamps(true, true);
   });
   console.log('Đã tạo bảng foods');
