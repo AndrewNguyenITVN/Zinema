@@ -95,9 +95,6 @@
                   <router-link :to="`/admin/foods/${food.id}/edit`" class="btn-edit">
                     <i class="fas fa-edit"></i>
                   </router-link>
-                  <button @click="confirmDelete(food.id)" class="btn-delete">
-                    <i class="fas fa-trash"></i>
-                  </button>
                 </div>
               </td>
             </tr>
