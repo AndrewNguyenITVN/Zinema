@@ -860,41 +860,42 @@ async function lockSeats(showtimeId, seatIds, user) {
     const lockDurationMinutes = 5; // Khóa ghế trong 5 phút
     const lockedUntil = new Date(now.getTime() + lockDurationMinutes * 60 * 1000);
 
-    // 1. Kiểm tra showtime có hợp lệ không
-    const showtime = await showtimeRepository().where("id", showtimeId).first();
-    if (!showtime || new Date(showtime.start_time) <= now) {
-        throw new Error("Suất chiếu không hợp lệ hoặc đã bắt đầu.");
-    }
-
-    // 2. Kiểm tra xem ghế đã được đặt (confirmed/pending) chưa
-    const bookedSeats = await ticketRepository()
-        .leftJoin("ticket_bookings", "tickets.ticket_booking_id", "ticket_bookings.id")
-        .where("ticket_bookings.showtime_id", showtimeId)
-        .whereIn("ticket_bookings.status", ["confirmed", "pending"])
-        .whereIn("tickets.seat_id", seatIds)
-        .select("tickets.seat_id");
-
-    if (bookedSeats.length > 0) {
-        const bookedSeatIds = bookedSeats.map(s => s.seat_id);
-        throw new Error(`Ghế ${bookedSeatIds.join(', ')} đã được đặt.`);
-    }
-
-    // 3. Kiểm tra xem ghế có đang bị khóa bởi người khác không
-    const existingLocks = await seatLockRepository()
-        .where({ showtime_id: showtimeId })
-        .whereIn("seat_id", seatIds);
-
-    const otherUserLocks = existingLocks.filter(lock => lock.locked_by_user_id !== user.id);
-    if (otherUserLocks.length > 0) {
-        const lockedSeatIds = otherUserLocks.map(l => l.seat_id);
-        throw new Error(`Ghế ${lockedSeatIds.join(', ')} đang được người khác giữ.`);
-    }
-
-    // 4. Bắt đầu transaction để khóa ghế
     return await knex.transaction(async (trx) => {
-        // Xóa các lock cũ của chính user này trên suất chiếu này để làm mới
-        await seatLockRepository()
-            .transacting(trx)
+        // 1. Kiểm tra showtime có hợp lệ không (bên trong transaction)
+        const showtime = await trx("showtimes").where("id", showtimeId).first();
+        if (!showtime || new Date(showtime.start_time) <= now) {
+            throw new Error("Suất chiếu không hợp lệ hoặc đã bắt đầu.");
+        }
+
+        // 2. Kiểm tra xem ghế đã được đặt (confirmed/pending) chưa (bên trong transaction)
+        const bookedSeats = await trx("tickets")
+            .join("ticket_bookings", "tickets.ticket_booking_id", "ticket_bookings.id")
+            .where("ticket_bookings.showtime_id", showtimeId)
+            .whereIn("ticket_bookings.status", ["confirmed", "pending"])
+            .whereIn("tickets.seat_id", seatIds)
+            .select("tickets.seat_id");
+
+        if (bookedSeats.length > 0) {
+            const bookedSeatIds = bookedSeats.map(s => s.seat_id);
+            throw new Error(`Ghế ${bookedSeatIds.join(', ')} đã được đặt.`);
+        }
+
+        // 3. Kiểm tra xem ghế có đang bị khóa bởi người khác không (bên trong transaction)
+        // Sử dụng .forUpdate() để khóa các dòng đang được kiểm tra, ngăn chặn race condition
+        const existingLocks = await trx("seat_locks")
+            .where({ showtime_id: showtimeId })
+            .whereIn("seat_id", seatIds)
+            .forUpdate()
+            .select();
+
+        const otherUserLocks = existingLocks.filter(lock => lock.locked_by_user_id !== user.id);
+        if (otherUserLocks.length > 0) {
+            const lockedSeatIds = otherUserLocks.map(l => l.seat_id);
+            throw new Error(`Ghế ${lockedSeatIds.join(', ')} đang được người khác giữ.`);
+        }
+
+        // 4. Khóa ghế: Xóa lock cũ của user và tạo lock mới (bên trong transaction)
+        await trx("seat_locks")
             .where({
                 showtime_id: showtimeId,
                 locked_by_user_id: user.id,
@@ -902,7 +903,6 @@ async function lockSeats(showtimeId, seatIds, user) {
             .whereIn("seat_id", seatIds)
             .del();
 
-        // Tạo lock mới
         const locksToInsert = seatIds.map(seatId => ({
             seat_id: seatId,
             showtime_id: showtimeId,
@@ -910,7 +910,21 @@ async function lockSeats(showtimeId, seatIds, user) {
             locked_until: lockedUntil,
         }));
 
-        await seatLockRepository().transacting(trx).insert(locksToInsert);
+        let inserted = [];
+        if (locksToInsert.length > 0) {
+            inserted = await trx('seat_locks')
+                .insert(locksToInsert)
+                .onConflict([ 'showtime_id', 'seat_id' ])
+                .ignore()
+                .returning('seat_id');
+        }
+
+        // Nếu số ghế insert thành công < số ghế yêu cầu, nghĩa là có ghế đã bị người khác khóa.
+        if (inserted.length !== seatIds.length) {
+            const insertedIds = inserted.map(r => r.seat_id);
+            const failed = seatIds.filter(id => !insertedIds.includes(id));
+            throw new Error(`Ghế ${failed.join(', ')} đang được người khác giữ.`);
+        }
 
         return {
             locked_until: lockedUntil,
