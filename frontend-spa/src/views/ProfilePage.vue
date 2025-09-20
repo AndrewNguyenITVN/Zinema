@@ -3,7 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia' // Import storeToRefs
 import { useAuthStore } from '@/stores/auth.store'
-import { usePasswordChange } from '@/composables/useAuth'
 import CustomerForm from '@/components/CustomerForm.vue'
 import ChangePasswordForm from '@/components/ChangePasswordForm.vue'
 
@@ -19,7 +18,13 @@ const authStore = useAuthStore()
 const { currentUser, userRole, isCustomer, isEmployee, isAdmin } = storeToRefs(authStore)
 const { setCurrentUser } = authStore // Actions có thể được destructure trực tiếp
 
-const { changePassword, isChangingPassword: isPasswordLoading } = usePasswordChange()
+const {
+  mutateAsync: changePassword,
+  isLoading: isPasswordLoading,
+  error: changePasswordError,
+} = useMutation({
+  mutationFn: authService.changePassword,
+})
 
 const queryClient = useQueryClient()
 const updateCustomerMutation = useMutation({
@@ -94,12 +99,12 @@ async function handleUpdateProfile(values) {
 // Password change
 async function handleChangePassword(values) {
   try {
-    await changePassword.mutateAsync(values)
+    await changePassword(values)
     isChangingPassword.value = false
     alert('Đổi mật khẩu thành công!')
   } catch (error) {
-    console.error('Change password error:', error)
-    alert('Có lỗi xảy ra khi đổi mật khẩu: ' + error.message)
+    console.error('Change password error:', changePasswordError.value || error)
+    alert('Có lỗi xảy ra khi đổi mật khẩu: ' + (changePasswordError.value?.message || error.message))
   }
 }
 
