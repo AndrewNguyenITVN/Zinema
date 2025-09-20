@@ -1,5 +1,6 @@
 const knex = require('../database/knex');
 const Paginator = require('./paginator');
+const { cleanupExpiredSeatLocks } = require('./booking.service');
 
 /**
  * Repository pattern cho table showtimes
@@ -230,8 +231,10 @@ async function deleteAllShowtimes() {
  * @returns {Promise<Object>} - Object chứa thông tin phòng và danh sách ghế
  */
 async function getSeatsForShowtime(showtimeId) {
-    // 1. Lấy thông tin suất chiếu và phòng chiếu
-    const showtime = await showtimeRepository()
+    // Chủ động dọn dẹp các lock đã hết hạn mỗi khi có người xem sơ đồ ghế
+    await cleanupExpiredSeatLocks();
+
+    const showtime = await knex('showtimes')
         .leftJoin('cinema_rooms', 'showtimes.cinema_room_id', 'cinema_rooms.id')
         .where('showtimes.id', showtimeId)
         .select(
@@ -244,15 +247,14 @@ async function getSeatsForShowtime(showtimeId) {
         .first();
 
     if (!showtime) {
-        return null; // Suất chiếu không tồn tại
+        return null; // or throw an error
     }
 
-    const { cinema_room_id, room_name, room_rows, room_columns, showtime_price } = showtime;
+    const room = await knex('cinema_rooms').where('id', showtime.cinema_room_id).first();
 
-    // 2. Lấy tất cả ghế trong phòng
-    const allSeats = await knex('seats')
+    const seats = await knex('seats')
         .leftJoin('seat_types', 'seats.seat_type_id', 'seat_types.id')
-        .where({ cinema_room_id })
+        .where({ cinema_room_id: showtime.cinema_room_id })
         .select(
             'seats.id', 
             'seats.name', 
@@ -261,31 +263,46 @@ async function getSeatsForShowtime(showtimeId) {
             'seat_types.name as type',
             'seat_types.price as surcharge'
         )
-        .orderBy(['seats.row', 'seats.column']);
+        .orderBy('seats.row', 'asc')
+        .orderBy('seats.column', 'asc');
 
-    // 3. Lấy ID của các ghế đã được đặt cho suất chiếu này
-    const bookedSeatIds = await knex('tickets')
-      .join('ticket_bookings', 'tickets.ticket_booking_id', 'ticket_bookings.id')
-      .where('ticket_bookings.showtime_id', showtimeId)
-      // Tính tất cả booking đang pending, confirmed hoặc completed
-      .whereIn('ticket_bookings.status', ['pending', 'confirmed', 'completed'])
-      .pluck('tickets.seat_id');
-
-    // 4. Map trạng thái (booked/available) vào danh sách ghế
-    const seatsWithStatus = allSeats.map(seat => ({
-        ...seat,
-        status: bookedSeatIds.includes(seat.id) ? 'booked' : 'available'
-    }));
+    // Lấy danh sách các ghế đã được đặt cho suất chiếu này
+    const bookedSeatIds = (await knex('tickets')
+        .join('ticket_bookings', 'tickets.ticket_booking_id', 'ticket_bookings.id')
+        .where('ticket_bookings.showtime_id', showtimeId)
+        .whereIn('ticket_bookings.status', ['confirmed', 'completed']))
+        .map(t => t.seat_id);
+    
+    // Lấy danh sách các ghế đang bị khóa
+    const lockedSeats = await knex('seat_locks')
+        .where('showtime_id', showtimeId)
+        .where('locked_until', '>', new Date());
+    
+    // Gán trạng thái cho mỗi ghế
+    seats.forEach(seat => {
+        if (bookedSeatIds.includes(seat.id)) {
+            seat.status = 'booked';
+        } else {
+            const lock = lockedSeats.find(l => l.seat_id === seat.id);
+            if (lock) {
+                seat.status = 'locked';
+                // Optional: không trả về thông tin người khóa cho client
+                // seat.locked_by = lock.locked_by_user_id; 
+            } else {
+                seat.status = 'available';
+            }
+        }
+    });
 
     return {
       room: {
-        id: cinema_room_id,
-        name: room_name,
-        rows: room_rows,
-        columns: room_columns,
+        id: showtime.cinema_room_id,
+        name: room.name,
+        rows: room.rows,
+        columns: room.columns,
       },
-      showtimePrice: showtime_price,
-      seats: seatsWithStatus,
+      showtimePrice: showtime.showtime_price,
+      seats: seats,
     };
 }
 
