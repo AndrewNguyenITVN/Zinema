@@ -132,6 +132,20 @@ onMounted(async () => {
 
         <div class="management-card">
           <div class="card-icon">
+            <i class="fas fa-utensils"></i>
+          </div>
+          <div class="card-content">
+            <h3>Quản lý đồ ăn</h3>
+            <p>Thêm, xóa, sửa thông tin đồ ăn và bắp nước</p>
+            <router-link to="/admin/foods" class="dashboard-btn">
+              <span>Truy cập</span>
+              <i class="fas fa-arrow-right"></i>
+            </router-link>
+          </div>
+        </div>
+
+        <div class="management-card">
+          <div class="card-icon">
             <i class="fas fa-couch"></i>
           </div>
           <div class="card-content">
