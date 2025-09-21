@@ -188,15 +188,16 @@ watch(selectedShowtime, async (newShowtime, oldShowtime) => {
 })
 
 // Unlock seats when user leaves the page
-onBeforeUnmount(async () => {
+onBeforeUnmount(() => {
   clearTimeout(lockTimeout)
   if (lockedSeatIds.value.length > 0 && selectedShowtime.value) {
-    try {
-      await bookingService.unlockSeats(selectedShowtime.value.id, lockedSeatIds.value)
-    } catch (error) {
-      // Non-critical error, just log it
-      console.log('Could not unlock seats before leaving page:', error.message)
-    }
+    // Fire-and-forget: Gửi yêu cầu mở khóa mà không cần đợi phản hồi
+    // Điều này tăng khả năng request được gửi đi thành công trước khi trang đóng
+    bookingService.unlockSeats(selectedShowtime.value.id, lockedSeatIds.value)
+      .catch(error => {
+        // Lỗi ở đây không quá nghiêm trọng vì lock sẽ tự hết hạn
+        console.log('Could not unlock seats before leaving page (non-critical):', error.message)
+      });
   }
 })
 // --- END SEAT LOCKING ---

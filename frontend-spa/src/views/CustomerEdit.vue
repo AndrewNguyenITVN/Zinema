@@ -2,7 +2,8 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
-import { useCustomers, useAuth } from '@/composables/useAuth'
+import { useCustomers } from '@/composables/useCustomers'
+import { useAuth } from '@/composables/useAuth'
 import CustomerForm from '@/components/CustomerForm.vue'
 import authService from '@/services/auth.service'
 
