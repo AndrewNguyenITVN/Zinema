@@ -104,6 +104,20 @@ onMounted(async () => {
 
         <div class="management-card">
           <div class="card-icon">
+            <i class="fas fa-chart-line"></i>
+          </div>
+          <div class="card-content">
+            <h3>Thống kê & Báo cáo</h3>
+            <p>Xem các báo cáo chi tiết về doanh thu và bán hàng</p>
+            <router-link :to="{ name: 'admin.statistics' }" class="dashboard-btn">
+              <span>Xem báo cáo</span>
+              <i class="fas fa-arrow-right"></i>
+            </router-link>
+          </div>
+        </div>
+
+        <div class="management-card">
+          <div class="card-icon">
             <i class="fas fa-user-friends"></i>
           </div>
           <div class="card-content">

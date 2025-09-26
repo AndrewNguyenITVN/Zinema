@@ -27,6 +27,7 @@ const MovieDetailPage = () => import('@/views/MovieDetailPage.vue')
 const AdminFoodList = () => import('@/views/AdminFoodList.vue')
 const AdminFoodAdd = () => import('@/views/AdminFoodAdd.vue')
 const AdminFoodEdit = () => import('@/views/AdminFoodEdit.vue')
+const AdminStatistics = () => import('@/views/AdminStatistics.vue')
 
 const routes = [
   // Public routes
@@ -83,6 +84,12 @@ const routes = [
     path: '/admin',
     name: 'admin.dashboard',
     component: AdminDashboard,
+    meta: { requiresAuth: true, roles: ['admin'] },
+  },
+  {
+    path: '/admin/statistics',
+    name: 'admin.statistics',
+    component: AdminStatistics,
     meta: { requiresAuth: true, roles: ['admin'] },
   },
 
