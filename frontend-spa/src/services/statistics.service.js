@@ -38,8 +38,29 @@ function makeStatisticsService() {
         });
     }
 
+    async function getRevenueByMovie(period = 'all') {
+        return efetch(`${baseUrl}/revenue/by-movie?period=${period}`, {
+            headers: getAuthHeaders()
+        });
+    }
+
+    async function getTicketsSoldSummary() {
+        return efetch(`${baseUrl}/tickets-sold/summary`, {
+            headers: getAuthHeaders()
+        });
+    }
+
+    async function getTopSellingFoods(limit = 5) {
+        return efetch(`${baseUrl}/foods/top-selling?limit=${limit}`, {
+            headers: getAuthHeaders()
+        });
+    }
+
     return {
         getDashboardStatistics,
+        getRevenueByMovie,
+        getTicketsSoldSummary,
+        getTopSellingFoods,
     };
 }
 
