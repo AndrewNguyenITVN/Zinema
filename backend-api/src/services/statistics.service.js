@@ -170,10 +170,31 @@ async function getOccupancyRateSummary({ period = 'all' } = {}) {
     };
 }
 
+/**
+ * Lấy thống kê các món ăn bán chạy nhất
+ * @param {object} options - Tùy chọn
+ * @param {number} options.limit - Số lượng món ăn cần lấy
+ */
+async function getTopSellingFoods({ limit = 5 } = {}) {
+    const query = knex('food_bookings')
+        .select('foods.name', 'foods.image_url')
+        .sum('food_bookings.quantity as totalQuantity')
+        .join('foods', 'food_bookings.food_id', 'foods.id')
+        .join('invoices', 'food_bookings.ticket_booking_id', 'invoices.ticket_booking_id')
+        .where('invoices.payment_status', 'paid')
+        .groupBy('foods.id')
+        .orderBy('totalQuantity', 'desc')
+        .limit(limit);
+
+    const result = await query;
+    return result.map(r => ({ ...r, totalQuantity: Number(r.totalQuantity) }));
+}
+
 module.exports = {
     getDashboardStatistics,
     getRevenueSummary,
     getRevenueByMovie,
     getTicketsSoldSummary,
     getOccupancyRateSummary,
+    getTopSellingFoods,
 };
