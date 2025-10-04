@@ -39,8 +39,35 @@ async function getRevenueByMovie(req, res, next) {
     }
 }
 
+/**
+ * Controller để lấy thống kê vé bán ra
+ */
+async function getTicketsSoldSummary(req, res, next) {
+    try {
+        const stats = await statisticsService.getTicketsSoldSummary();
+        res.status(200).json(JSend.success(stats));
+    } catch (error) {
+        next(new ApiError());
+    }
+}
+
+/**
+ * Controller để lấy thống kê món ăn bán chạy
+ */
+async function getTopSellingFoods(req, res, next) {
+    try {
+        const { limit } = req.query;
+        const stats = await statisticsService.getTopSellingFoods({ limit });
+        res.status(200).json(JSend.success(stats));
+    } catch (error) {
+        next(new ApiError());
+    }
+}
+
 module.exports = {
     getDashboardStatistics,
     getRevenueSummary,
     getRevenueByMovie,
+    getTicketsSoldSummary,
+    getTopSellingFoods,
 };

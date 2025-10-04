@@ -96,6 +96,59 @@ router.get(
     statisticsController.getRevenueByMovie
 );
 
+/**
+ * @openapi
+ * /api/statistics/tickets-sold/summary:
+ *   get:
+ *     summary: Lấy thống kê số vé bán ra (ngày, tuần, tháng)
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Trả về các số liệu vé bán ra.
+ *       401:
+ *         description: Unauthorized.
+ *       403:
+ *         description: Forbidden.
+ */
+router.get(
+    '/tickets-sold/summary',
+    authenticateToken,
+    authorizeRoles([ROLES.ADMIN]),
+    statisticsController.getTicketsSoldSummary
+);
+
+/**
+ * @openapi
+ * /api/statistics/foods/top-selling:
+ *   get:
+ *     summary: Lấy thống kê các món ăn bán chạy nhất
+ *     tags: [Statistics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 5
+ *         description: Giới hạn số lượng món ăn trả về
+ *     responses:
+ *       200:
+ *         description: Trả về danh sách các món ăn bán chạy.
+ *       401:
+ *         description: Unauthorized.
+ *       403:
+ *         description: Forbidden.
+ */
+router.get(
+    '/foods/top-selling',
+    authenticateToken,
+    authorizeRoles([ROLES.ADMIN]),
+    statisticsController.getTopSellingFoods
+);
+
 module.exports.setup = (app) => {
     app.use('/api/statistics', router);
 };
