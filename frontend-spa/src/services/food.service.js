@@ -1,21 +1,31 @@
 import { API_BASE_URL, STATIC_BASE_URL } from '@/constants'
 
 async function efetch(url, options = {}) {
-  let result = {}
-  let json = {}
-
   try {
-    result = await fetch(url, options)
-    json = await result.json()
+    const result = await fetch(url, options)
+
+    if (!result.ok) {
+      // Ném lỗi với status text nếu request không thành công
+      // Điều này xử lý các lỗi HTTP (404, 500,...) mà không có body JSON
+      throw new Error(result.statusText || 'Request failed')
+    }
+
+    // Chỉ parse JSON nếu request thành công và có nội dung
+    if (result.status === 204 || result.headers.get('content-length') === '0') {
+      return null // No content
+    }
+
+    const json = await result.json()
+
+    if (json.status && json.status !== 'success') {
+      throw new Error(json.message || 'API request failed')
+    }
+
+    return json.data
   } catch (error) {
-    throw new Error(error.message)
+    // Re-throw để được bắt bởi vue-query hoặc component
+    throw new Error(error.message || 'An unknown error occurred')
   }
-
-  if (!result.ok || json.status !== 'success') {
-    throw new Error(json.message || 'Request failed')
-  }
-
-  return json.data
 }
 
 function getFullFoodImageUrl(imagePath) {
