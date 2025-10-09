@@ -1,15 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import foodService from '@/services/food.service'
+import { toVal } from '@/utils/helpers'
 
 const FOOD_QUERY_KEY = 'foods'
 
-function toVal(source) {
-  return source && typeof source === 'object' && 'value' in source ? source.value : source
-}
-
 /**
- * Composable hook to manage foods
+ * Composable to manage foods with mutations.
+ * Provides reactive state for food mutations and local filter management.
  */
 export function useFoods() {
   const queryClient = useQueryClient()
@@ -103,7 +101,10 @@ export function useFoods() {
 }
 
 /**
- * Composable to get a list of foods with filters and pagination
+ * Composable to get a list of foods with filters and pagination.
+ * Returns reactive state for foods list based on provided filters.
+ * 
+ * @param {import('vue').Ref<object>|object} filters - Filters object (can be reactive or plain)
  */
 export function useFoodsList(filters = {}) {
   const cleanFilters = computed(() => {
@@ -120,18 +121,23 @@ export function useFoodsList(filters = {}) {
     queryFn: () => foodService.getAllFoods(cleanFilters.value),
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData, // Giữ data cũ khi refetch
   })
 }
 
 /**
- * Composable to get food details by ID
+ * Composable to get food details by ID.
+ * Returns reactive state for a specific food.
+ * 
+ * @param {import('vue').Ref<number|string|null>|number|string|null} foodId - The ID of the food to retrieve
  */
 export function useFoodById(foodId) {
+  const fid = computed(() => toVal(foodId))
+  
   return useQuery({
-    queryKey: [FOOD_QUERY_KEY, toVal(foodId)],
-    queryFn: () => foodService.getFoodById(toVal(foodId)),
-    enabled: computed(() => !!toVal(foodId)),
+    queryKey: [FOOD_QUERY_KEY, fid],
+    queryFn: () => foodService.getFoodById(fid.value),
+    enabled: computed(() => !!fid.value),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 30 * 60 * 1000, // 30 minutes
     retry: (failureCount, error) => {
