@@ -215,11 +215,28 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { useMovies } from '@/composables/useMovies'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import movieService from '@/services/movie.service'
 import { STATIC_BASE_URL } from '@/constants'
 
 const router = useRouter()
-const { createMovie, isCreatingMovie, createMovieError } = useMovies()
+const queryClient = useQueryClient()
+
+const {
+  mutateAsync: createMovie,
+  isPending: isCreatingMovie,
+  error: createMovieError,
+} = useMutation({
+  mutationFn: movieService.createMovie,
+  onSuccess: (data) => {
+    // Invalidate and refetch the movies list
+    queryClient.invalidateQueries({ queryKey: ['movies'] })
+    // Optionally, pre-populate the cache for the new movie
+    if (data && data.movie) {
+      queryClient.setQueryData(['movies', data.movie.id], data.movie)
+    }
+  },
+})
 
 // State
 const posterFile = ref(null)
@@ -349,11 +366,11 @@ async function handleSubmit() {
       formData.append('posterFile', posterFile.value)
     }
 
-    const result = await createMovie.mutateAsync(formData)
+    const result = await createMovie(formData)
 
     if (result && result.movie) {
       alert('Tạo phim mới thành công')
-      router.push(`/admin/movies/${result.movie.id}`)
+      router.push(`/admin/movies`) // Redirect to list page after creation
     } else {
       throw new Error('Invalid response structure')
     }

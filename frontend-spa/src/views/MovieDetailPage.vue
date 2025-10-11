@@ -260,16 +260,33 @@
 <script setup>
 import { ref, computed, onMounted, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMovies, useMovieById } from '@/composables/useMovies'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import movieService from '@/services/movie.service'
+import { useMovieById } from '@/composables/useMovieById'
 import { useAuth } from '@/composables/useAuth'
 import { STATIC_BASE_URL } from '@/constants'
 
 const route = useRoute()
 const router = useRouter()
 const movieId = computed(() => route.params.id)
+const queryClient = useQueryClient()
+
+// Mutations
+const {
+  mutateAsync: updateMovie,
+  isPending: isUpdatingMovie,
+  error: updateMovieError,
+} = useMutation({
+  mutationFn: ({ id, data }) => movieService.updateMovie(id, data),
+  onSuccess: (data) => {
+    queryClient.invalidateQueries({ queryKey: ['movies'] })
+    if (data && data.movie) {
+      queryClient.setQueryData(['movies', data.movie.id], data.movie)
+    }
+  },
+})
 
 // Composables
-const { updateMovie, isUpdatingMovie, updateMovieError } = useMovies()
 const { data: currentMovie, isLoading, error, refetch } = useMovieById(movieId)
 const { isAdmin, isEmployee, isCustomer } = useAuth()
 
@@ -402,7 +419,7 @@ async function handleSubmit() {
       formData.append('posterFile', selectedPoster.value)
     }
 
-    await updateMovie.mutateAsync({ id: movieId.value, data: formData })
+    await updateMovie({ id: movieId.value, data: formData })
 
     isEditing.value = false
     selectedPoster.value = null
