@@ -6,13 +6,20 @@ Cinema is a movie theater management system, including a backend API (Node.js/Ex
 
 ---
 
+## Demo
+
+[Watch Demo on YouTube](https://youtu.be/WFCSNUXTSU0)
+
+
+---
+
 ## Student Information
 
-- **Intructor:** Bui Vo Quoc Bao
+- **Instructor:** Bui Vo Quoc Bao
 - **Student 1:** Nguyễn Minh Nhựt - B2205896
 - **Student 2:** Huỳnh Tấn Đạt - B2203438
 - **Class:** CT313H
-- **Semester:** 3, Academic Year 2024-2025
+- **Semester:** 2, Academic Year 2025-2026
 
 ---
 
@@ -33,16 +40,17 @@ Zinema/
 - **src/database/**: Database connection and configuration (Knex.js)
 - **seeds/**: Sample data for the database
 - **public/**: Poster images, food images, uploads
-- **doc/openapiSpec.json**: OpenAPI API documentation
+- **doc/openapiSpec.json**: OpenAPI/Swagger API documentation
 
 ### Frontend (frontend-spa)
 
-- **src/components/**: UI components (AuthForm, MovieCard, SeatPicker, etc.)
-- **src/composables/**: Tanstack
-- **src/views/**: Main pages (Home, Booking, Admin, Profile, etc.)
+- **src/components/**: UI components (AuthForm, MovieCard, SeatPicker, charts, etc.)
+- **src/composables/**: Data fetching hooks using TanStack Vue Query
+- **src/views/**: Main pages (Home, Booking, Admin Dashboard, Statistics, Profile, etc.)
 - **src/services/**: API calls to backend
-- **src/stores/**: State management (Pinia/Vuex)
-- **src/router/**: Page routing
+- **src/stores/**: Global state management (Pinia)
+- **src/router/**: Page routing (Vue Router)
+- **src/utils/**: Utility helpers and formatters
 - **public/**: Images, favicon, logo
 
 ---
@@ -80,21 +88,25 @@ npm run dev
 
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3000
+- API Docs (Swagger): http://localhost:3000/api-docs
 
 ---
 
 ## Technologies Used
 
-- **Backend:** Node.js, Express, Knex.js, JWT, Multer, OpenAPI
-- **Frontend:** Vue.js 3, Pinia, Vue Router, Vite, Tanstack
-- **Database:** (PostgreSQL - configurable)
-- **Others:** RESTful API, JWT Auth, File Upload, Pagination
+| Layer | Technologies |
+|-------|-------------|
+| **Backend** | Node.js, Express 5, Knex.js, PostgreSQL (`pg`), JWT (`jsonwebtoken`), bcrypt, Multer, Zod, Google Auth, Swagger UI, express-rate-limit |
+| **Frontend** | Vue.js 3, Pinia, Vue Router, Vite, TanStack Vue Query, Bootstrap 5, Chart.js, vue-chartjs, vee-validate, Zod, Font Awesome |
+| **Database** | PostgreSQL |
+| **Other** | RESTful API, JWT Auth, Google OAuth, File Upload, OpenAPI/Swagger |
 
 ---
 
 ## Documentation
 
 - [OpenAPI Spec](backend-api/doc/openapiSpec.json)
+- [Demo Video](https://youtu.be/WFCSNUXTSU0)
 - See each folder's `README.md` for more details (if available)
 
 ---
